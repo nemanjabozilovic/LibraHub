@@ -1,4 +1,3 @@
-using LibraHub.BuildingBlocks.Messaging;
 using LibraHub.BuildingBlocks.Outbox;
 using LibraHub.Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;

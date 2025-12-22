@@ -19,13 +19,13 @@ public class Book
     public DateTime? RemovedAt { get; private set; }
 
     private readonly List<BookAuthor> _authors = new();
-    public IReadOnlyCollection<BookAuthor> Authors => _authors.AsReadOnly();
+    public virtual IReadOnlyCollection<BookAuthor> Authors => _authors.AsReadOnly();
 
     private readonly List<BookCategory> _categories = new();
-    public IReadOnlyCollection<BookCategory> Categories => _categories.AsReadOnly();
+    public virtual IReadOnlyCollection<BookCategory> Categories => _categories.AsReadOnly();
 
     private readonly List<BookTag> _tags = new();
-    public IReadOnlyCollection<BookTag> Tags => _tags.AsReadOnly();
+    public virtual IReadOnlyCollection<BookTag> Tags => _tags.AsReadOnly();
 
     private Book()
     { } // For EF Core

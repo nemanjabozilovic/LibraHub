@@ -18,7 +18,6 @@ public class LoginHandler(
     IClock clock,
     IOptions<SecurityOptions> securityOptions) : IRequestHandler<LoginCommand, Result<AuthTokensDto>>
 {
-
     public async Task<Result<AuthTokensDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         var emailLower = request.Email.ToLowerInvariant();

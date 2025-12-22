@@ -1,10 +1,10 @@
 using LibraHub.BuildingBlocks.Results;
+using LibraHub.Identity.Api.Dtos.Auth;
 using LibraHub.Identity.Application.Auth.Commands.Login;
 using LibraHub.Identity.Application.Auth.Commands.Refresh;
 using LibraHub.Identity.Application.Auth.Commands.Register;
 using LibraHub.Identity.Application.Auth.Commands.VerifyEmail;
 using LibraHub.Identity.Application.Auth.Dtos;
-using LibraHub.Identity.Api.Dtos.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 

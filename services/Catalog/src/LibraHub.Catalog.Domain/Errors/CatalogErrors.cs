@@ -32,4 +32,12 @@ public static class CatalogErrors
         public const string MissingTitle = "ANNOUNCEMENT_MISSING_TITLE";
         public const string MissingContent = "ANNOUNCEMENT_MISSING_CONTENT";
     }
+
+    public static class Promotion
+    {
+        public const string NotFound = "PROMOTION_NOT_FOUND";
+        public const string RuleNotFound = "PROMOTION_RULE_NOT_FOUND";
+        public const string InvalidStatus = "INVALID_PROMOTION_STATUS";
+        public const string CannotModify = "CANNOT_MODIFY_PROMOTION";
+    }
 }

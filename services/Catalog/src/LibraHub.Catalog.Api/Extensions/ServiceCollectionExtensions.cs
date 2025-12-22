@@ -19,7 +19,8 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'CatalogDb' not found.");
 
         services.AddDbContext<CatalogDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString)
+                   .UseLazyLoadingProxies());
 
         return services;
     }
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPricingRepository, PricingRepository>();
         services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
         services.AddScoped<IBookContentStateRepository, BookContentStateRepository>();
+        services.AddScoped<IPromotionRepository, PromotionRepository>();
 
         // Infrastructure services
         services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, CatalogEventPublisher>();
