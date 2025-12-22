@@ -1,0 +1,88 @@
+name: librahub
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: librahub-postgres
+    environment:
+      POSTGRES_USER: librahub_admin
+      POSTGRES_PASSWORD: L1br@Hub_DB_2026!S3cur3_P@ss
+      POSTGRES_DB: librahub_identity
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - librahub-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: librahub-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: librahub_mq
+      RABBITMQ_DEFAULT_PASS: R@bb1tMQ_L1br@Hub_2026!S3cur3_P@ss
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI (http://localhost:15672)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - librahub-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: librahub-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - librahub-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: librahub-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@librahub.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/misc/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - librahub-network
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:
+  pgadmin_data:
+
+networks:
+  librahub-network:
+    driver: bridge
+

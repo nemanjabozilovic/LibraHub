@@ -1,0 +1,8 @@
+namespace LibraHub.Contracts.Identity.V1;
+
+public record UserRegisteredV1
+{
+    public Guid UserId { get; init; }
+    public string Email { get; init; } = string.Empty;
+    public DateTime OccurredAt { get; init; }
+}
