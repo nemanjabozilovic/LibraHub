@@ -32,4 +32,9 @@ public static class EventTypes
     public const string OrderPaid = "Orders.OrderPaid.v1";
     public const string OrderCancelled = "Orders.OrderCancelled.v1";
     public const string OrderRefunded = "Orders.OrderRefunded.v1";
+
+    // Library events
+    public const string EntitlementGranted = "Library.EntitlementGranted.v1";
+
+    public const string EntitlementRevoked = "Library.EntitlementRevoked.v1";
 }

@@ -1,0 +1,74 @@
+using LibraHub.BuildingBlocks.Results;
+using LibraHub.Contracts.Common;
+using LibraHub.Contracts.Library.V1;
+using LibraHub.Library.Application.Abstractions;
+using LibraHub.Library.Domain.Entitlements;
+using LibraHub.Library.Domain.Errors;
+using MediatR;
+using Error = LibraHub.BuildingBlocks.Results.Error;
+
+namespace LibraHub.Library.Application.Entitlements.Commands.AdminGrantEntitlement;
+
+public class AdminGrantEntitlementHandler(
+    IEntitlementRepository entitlementRepository,
+    BuildingBlocks.Abstractions.IOutboxWriter outboxWriter) : IRequestHandler<AdminGrantEntitlementCommand, Result<Guid>>
+{
+    public async Task<Result<Guid>> Handle(AdminGrantEntitlementCommand request, CancellationToken cancellationToken)
+    {
+        // Check if entitlement already exists
+        var existing = await entitlementRepository.GetByUserAndBookAsync(
+            request.UserId,
+            request.BookId,
+            cancellationToken);
+
+        if (existing != null)
+        {
+            if (existing.IsActive)
+            {
+                return Result.Failure<Guid>(Error.Validation(LibraryErrors.Entitlement.AlreadyExists));
+            }
+
+            // Reactivate revoked entitlement
+            existing.Reactivate();
+            await entitlementRepository.UpdateAsync(existing, cancellationToken);
+
+            // Publish event
+            await outboxWriter.WriteAsync(
+                new EntitlementGrantedV1
+                {
+                    UserId = existing.UserId,
+                    BookId = existing.BookId,
+                    Source = existing.Source.ToString(),
+                    AcquiredAtUtc = existing.AcquiredAt
+                },
+                EventTypes.EntitlementGranted,
+                cancellationToken);
+
+            return Result.Success(existing.Id);
+        }
+
+        // Create new entitlement
+        var entitlement = new Entitlement(
+            Guid.NewGuid(),
+            request.UserId,
+            request.BookId,
+            EntitlementSource.AdminGrant);
+
+        await entitlementRepository.AddAsync(entitlement, cancellationToken);
+
+        // Publish event
+        await outboxWriter.WriteAsync(
+            new EntitlementGrantedV1
+            {
+                UserId = entitlement.UserId,
+                BookId = entitlement.BookId,
+                Source = entitlement.Source.ToString(),
+                AcquiredAtUtc = entitlement.AcquiredAt
+            },
+            EventTypes.EntitlementGranted,
+            cancellationToken);
+
+        return Result.Success(entitlement.Id);
+    }
+}
+

@@ -2,10 +2,10 @@ using FluentValidation;
 using LibraHub.BuildingBlocks.Auth;
 using LibraHub.BuildingBlocks.Health;
 using LibraHub.BuildingBlocks.Messaging;
+using LibraHub.BuildingBlocks.Outbox;
 using LibraHub.Identity.Application;
 using LibraHub.Identity.Application.Abstractions;
 using LibraHub.Identity.Application.Options;
-using LibraHub.Identity.Infrastructure.Messaging;
 using LibraHub.Identity.Infrastructure.Options;
 using LibraHub.Identity.Infrastructure.Persistence;
 using LibraHub.Identity.Infrastructure.Repositories;
@@ -40,7 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IEmailVerificationTokenService, EmailVerificationTokenService>();
 
-        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, IdentityEventPublisher>();
+        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OutboxEventPublisher<IdentityDbContext>>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
@@ -65,7 +65,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddIdentityRabbitMq(this IServiceCollection services, IConfiguration configuration)
     {
-        return services.AddLibraHubRabbitMq<IdentityOutboxPublisherWorker>(configuration);
+        return services.AddLibraHubRabbitMq<OutboxPublisherWorkerHelper<IdentityDbContext>>(configuration);
     }
 
     public static IServiceCollection AddIdentityHealthChecks(this IServiceCollection services, IConfiguration configuration)

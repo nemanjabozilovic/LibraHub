@@ -1,11 +1,13 @@
 using FluentValidation;
 using LibraHub.BuildingBlocks.Auth;
 using LibraHub.BuildingBlocks.Health;
+using LibraHub.BuildingBlocks.Idempotency;
 using LibraHub.BuildingBlocks.Messaging;
+using LibraHub.BuildingBlocks.Outbox;
 using LibraHub.Orders.Application;
 using LibraHub.Orders.Application.Abstractions;
 using LibraHub.Orders.Infrastructure.Clients;
-using LibraHub.Orders.Infrastructure.Messaging;
+using LibraHub.Orders.Infrastructure.Idempotency;
 using LibraHub.Orders.Infrastructure.Options;
 using LibraHub.Orders.Infrastructure.Payments;
 using LibraHub.Orders.Infrastructure.Persistence;
@@ -36,11 +38,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IRefundRepository, RefundRepository>();
 
-        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OrdersEventPublisher>();
+        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OutboxEventPublisher<OrdersDbContext>>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
-        services.AddScoped<BuildingBlocks.Idempotency.IIdempotencyStore, Infrastructure.Idempotency.IdempotencyStore>();
+        services.AddScoped<IIdempotencyStore, IdempotencyStore<OrdersDbContext, IdempotencyKey>>();
 
         services.Configure<Infrastructure.Options.MockPaymentOptions>(configuration.GetSection(Infrastructure.Options.MockPaymentOptions.SectionName));
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
@@ -60,7 +62,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddOrdersRabbitMq(this IServiceCollection services, IConfiguration configuration)
     {
-        return services.AddLibraHubRabbitMq<OrdersOutboxPublisherWorker>(configuration);
+        return services.AddLibraHubRabbitMq<OutboxPublisherWorkerHelper<OrdersDbContext>>(configuration);
     }
 
     public static IServiceCollection AddOrdersHealthChecks(this IServiceCollection services, IConfiguration configuration)

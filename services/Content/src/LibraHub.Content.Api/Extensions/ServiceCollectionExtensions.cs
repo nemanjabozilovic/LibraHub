@@ -2,11 +2,11 @@ using FluentValidation;
 using LibraHub.BuildingBlocks.Auth;
 using LibraHub.BuildingBlocks.Health;
 using LibraHub.BuildingBlocks.Messaging;
+using LibraHub.BuildingBlocks.Outbox;
 using LibraHub.Content.Application;
 using LibraHub.Content.Application.Abstractions;
 using LibraHub.Content.Application.Options;
 using LibraHub.Content.Infrastructure.Clients;
-using LibraHub.Content.Infrastructure.Messaging;
 using LibraHub.Content.Infrastructure.Options;
 using LibraHub.Content.Infrastructure.Persistence;
 using LibraHub.Content.Infrastructure.Repositories;
@@ -40,7 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICoverRepository, CoverRepository>();
         services.AddScoped<IAccessGrantRepository, AccessGrantRepository>();
 
-        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, ContentEventPublisher>();
+        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OutboxEventPublisher<ContentDbContext>>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
@@ -77,7 +77,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddContentRabbitMq(this IServiceCollection services, IConfiguration configuration)
     {
-        return services.AddLibraHubRabbitMq<ContentOutboxPublisherWorker>(configuration);
+        return services.AddLibraHubRabbitMq<OutboxPublisherWorkerHelper<ContentDbContext>>(configuration);
     }
 
     public static IServiceCollection AddContentHealthChecks(this IServiceCollection services, IConfiguration configuration)

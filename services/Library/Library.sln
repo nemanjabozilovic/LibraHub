@@ -1,0 +1,64 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11205.157 d18.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{603AF373-6C9E-491E-8AE8-92A5FF2F43F3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shared", "shared", "{2210222F-3F71-48E9-ADEC-BDE2EC9FDA4C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.Library.Api", "src\LibraHub.Library.Api\LibraHub.Library.Api.csproj", "{51F75854-0F04-49C4-88D3-1B00C957B992}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.Library.Application", "src\LibraHub.Library.Application\LibraHub.Library.Application.csproj", "{B3B036E5-EBFB-4343-848D-FBBAAE46B9F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.Library.Domain", "src\LibraHub.Library.Domain\LibraHub.Library.Domain.csproj", "{92552FA2-E4FB-4A06-B857-CDA13E4BCB4E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.Library.Infrastructure", "src\LibraHub.Library.Infrastructure\LibraHub.Library.Infrastructure.csproj", "{6AAD6589-13C2-4683-BDE0-4679E6756840}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.BuildingBlocks", "..\..\shared\BuildingBlocks\src\LibraHub.BuildingBlocks\LibraHub.BuildingBlocks.csproj", "{9B1654AB-2686-429C-8BC8-BF77CBFB5159}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.Contracts", "..\..\shared\Contracts\src\LibraHub.Contracts\LibraHub.Contracts.csproj", "{E5F6A7B8-C9D0-4E5F-9A0B-1C2D3E4F5A6B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{51F75854-0F04-49C4-88D3-1B00C957B992}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51F75854-0F04-49C4-88D3-1B00C957B992}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51F75854-0F04-49C4-88D3-1B00C957B992}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51F75854-0F04-49C4-88D3-1B00C957B992}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3B036E5-EBFB-4343-848D-FBBAAE46B9F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3B036E5-EBFB-4343-848D-FBBAAE46B9F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3B036E5-EBFB-4343-848D-FBBAAE46B9F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3B036E5-EBFB-4343-848D-FBBAAE46B9F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{92552FA2-E4FB-4A06-B857-CDA13E4BCB4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92552FA2-E4FB-4A06-B857-CDA13E4BCB4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92552FA2-E4FB-4A06-B857-CDA13E4BCB4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92552FA2-E4FB-4A06-B857-CDA13E4BCB4E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AAD6589-13C2-4683-BDE0-4679E6756840}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AAD6589-13C2-4683-BDE0-4679E6756840}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AAD6589-13C2-4683-BDE0-4679E6756840}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AAD6589-13C2-4683-BDE0-4679E6756840}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9B1654AB-2686-429C-8BC8-BF77CBFB5159}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B1654AB-2686-429C-8BC8-BF77CBFB5159}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B1654AB-2686-429C-8BC8-BF77CBFB5159}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B1654AB-2686-429C-8BC8-BF77CBFB5159}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5F6A7B8-C9D0-4E5F-9A0B-1C2D3E4F5A6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5F6A7B8-C9D0-4E5F-9A0B-1C2D3E4F5A6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5F6A7B8-C9D0-4E5F-9A0B-1C2D3E4F5A6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5F6A7B8-C9D0-4E5F-9A0B-1C2D3E4F5A6B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{51F75854-0F04-49C4-88D3-1B00C957B992} = {603AF373-6C9E-491E-8AE8-92A5FF2F43F3}
+		{B3B036E5-EBFB-4343-848D-FBBAAE46B9F5} = {603AF373-6C9E-491E-8AE8-92A5FF2F43F3}
+		{92552FA2-E4FB-4A06-B857-CDA13E4BCB4E} = {603AF373-6C9E-491E-8AE8-92A5FF2F43F3}
+		{6AAD6589-13C2-4683-BDE0-4679E6756840} = {603AF373-6C9E-491E-8AE8-92A5FF2F43F3}
+		{9B1654AB-2686-429C-8BC8-BF77CBFB5159} = {2210222F-3F71-48E9-ADEC-BDE2EC9FDA4C}
+		{E5F6A7B8-C9D0-4E5F-9A0B-1C2D3E4F5A6B} = {2210222F-3F71-48E9-ADEC-BDE2EC9FDA4C}
+	EndGlobalSection
+EndGlobal
+

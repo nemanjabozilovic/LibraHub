@@ -1,0 +1,63 @@
+using LibraHub.Library.Application.Abstractions;
+using LibraHub.Library.Domain.Entitlements;
+using LibraHub.Library.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace LibraHub.Library.Infrastructure.Repositories;
+
+public class EntitlementRepository : IEntitlementRepository
+{
+    private readonly LibraryDbContext _context;
+
+    public EntitlementRepository(LibraryDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<Entitlement?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+    }
+
+    public async Task<Entitlement?> GetByUserAndBookAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .FirstOrDefaultAsync(e => e.UserId == userId && e.BookId == bookId, cancellationToken);
+    }
+
+    public async Task<List<Entitlement>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .Where(e => e.UserId == userId)
+            .OrderByDescending(e => e.AcquiredAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Entitlement>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .Where(e => e.UserId == userId && e.Status == EntitlementStatus.Active)
+            .OrderByDescending(e => e.AcquiredAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> HasAccessAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .AnyAsync(e => e.UserId == userId && e.BookId == bookId && e.Status == EntitlementStatus.Active, cancellationToken);
+    }
+
+    public async Task AddAsync(Entitlement entitlement, CancellationToken cancellationToken = default)
+    {
+        await _context.Entitlements.AddAsync(entitlement, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(Entitlement entitlement, CancellationToken cancellationToken = default)
+    {
+        _context.Entitlements.Update(entitlement);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+}
+

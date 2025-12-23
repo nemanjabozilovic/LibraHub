@@ -2,9 +2,9 @@ using FluentValidation;
 using LibraHub.BuildingBlocks.Auth;
 using LibraHub.BuildingBlocks.Health;
 using LibraHub.BuildingBlocks.Messaging;
+using LibraHub.BuildingBlocks.Outbox;
 using LibraHub.Catalog.Application;
 using LibraHub.Catalog.Application.Abstractions;
-using LibraHub.Catalog.Infrastructure.Messaging;
 using LibraHub.Catalog.Infrastructure.Persistence;
 using LibraHub.Catalog.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -36,7 +36,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBookContentStateRepository, BookContentStateRepository>();
         services.AddScoped<IPromotionRepository, PromotionRepository>();
 
-        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, CatalogEventPublisher>();
+        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OutboxEventPublisher<CatalogDbContext>>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
@@ -51,7 +51,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddCatalogRabbitMq(this IServiceCollection services, IConfiguration configuration)
     {
-        return services.AddLibraHubRabbitMq<CatalogOutboxPublisherWorker>(configuration);
+        return services.AddLibraHubRabbitMq<OutboxPublisherWorkerHelper<CatalogDbContext>>(configuration);
     }
 
     public static IServiceCollection AddCatalogHealthChecks(this IServiceCollection services, IConfiguration configuration)
