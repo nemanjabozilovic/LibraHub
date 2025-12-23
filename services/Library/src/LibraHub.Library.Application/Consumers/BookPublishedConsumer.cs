@@ -18,7 +18,7 @@ public class BookPublishedConsumer(
         if (existing != null)
         {
             // Update existing snapshot
-            existing.Update(@event.Title, "Unknown Author"); // Authors not in BookPublished event
+            existing.Update(@event.Title, @event.Authors);
             await bookSnapshotStore.AddOrUpdateAsync(existing, cancellationToken);
         }
         else
@@ -27,7 +27,7 @@ public class BookPublishedConsumer(
             var snapshot = new BookSnapshot(
                 @event.BookId,
                 @event.Title,
-                "Unknown Author"); // Authors not in BookPublished event
+                @event.Authors);
 
             await bookSnapshotStore.AddOrUpdateAsync(snapshot, cancellationToken);
         }

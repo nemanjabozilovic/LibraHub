@@ -22,14 +22,14 @@ public class BookUpdatedConsumer(
             var newSnapshot = new Domain.Books.BookSnapshot(
                 @event.BookId,
                 @event.Title,
-                "Unknown Author"); // Authors not in BookUpdated event
+                @event.Authors);
 
             await bookSnapshotStore.AddOrUpdateAsync(newSnapshot, cancellationToken);
         }
         else
         {
             // Update existing snapshot
-            snapshot.Update(@event.Title, snapshot.Authors); // Keep existing authors
+            snapshot.Update(@event.Title, @event.Authors);
             await bookSnapshotStore.AddOrUpdateAsync(snapshot, cancellationToken);
         }
 

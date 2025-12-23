@@ -40,11 +40,14 @@ public class PublishBookHandler(
 
         await bookRepository.UpdateAsync(book, cancellationToken);
 
+        var authors = string.Join(", ", book.Authors.Select(a => a.Name));
+
         await outboxWriter.WriteAsync(
             new Contracts.Catalog.V1.BookPublishedV1
             {
                 BookId = book.Id,
                 Title = book.Title,
+                Authors = authors,
                 PublishedAt = book.UpdatedAt
             },
             Contracts.Common.EventTypes.BookPublished,

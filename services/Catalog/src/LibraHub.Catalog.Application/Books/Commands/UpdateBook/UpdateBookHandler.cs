@@ -99,11 +99,14 @@ public class UpdateBookHandler(
 
         await bookRepository.UpdateAsync(book, cancellationToken);
 
+        var authors = string.Join(", ", book.Authors.Select(a => a.Name));
+
         await outboxWriter.WriteAsync(
             new Contracts.Catalog.V1.BookUpdatedV1
             {
                 BookId = book.Id,
                 Title = book.Title,
+                Authors = authors,
                 UpdatedAt = book.UpdatedAt
             },
             Contracts.Common.EventTypes.BookUpdated,
