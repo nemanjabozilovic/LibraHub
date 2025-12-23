@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRefundRepository, RefundRepository>();
 
         services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OutboxEventPublisher<OrdersDbContext>>();
+        services.AddScoped<BuildingBlocks.Abstractions.IUnitOfWork, UnitOfWork>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();

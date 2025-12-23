@@ -28,6 +28,15 @@ public class NotificationPreferencesRepository : INotificationPreferencesReposit
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Guid>> GetUserIdsWithEnabledNotificationsAsync(NotificationType type, CancellationToken cancellationToken = default)
+    {
+        return await _context.NotificationPreferences
+            .Where(p => p.Type == type && (p.EmailEnabled || p.InAppEnabled))
+            .Select(p => p.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(NotificationPreference preference, CancellationToken cancellationToken = default)
     {
         await _context.NotificationPreferences.AddAsync(preference, cancellationToken);

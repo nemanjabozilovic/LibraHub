@@ -48,6 +48,12 @@ public class NotificationRepository : INotificationRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task AddRangeAsync(IEnumerable<Notification> notifications, CancellationToken cancellationToken = default)
+    {
+        await _context.Notifications.AddRangeAsync(notifications, cancellationToken);
+        // Don't save here - let the transaction handle it
+    }
+
     public async Task UpdateAsync(Notification notification, CancellationToken cancellationToken = default)
     {
         _context.Notifications.Update(notification);

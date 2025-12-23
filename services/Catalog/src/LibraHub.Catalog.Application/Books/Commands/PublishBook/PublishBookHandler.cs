@@ -11,7 +11,8 @@ public class PublishBookHandler(
     IBookRepository bookRepository,
     IPricingRepository pricingRepository,
     IBookContentStateRepository contentStateRepository,
-    IOutboxWriter outboxWriter) : IRequestHandler<PublishBookCommand, Result>
+    IOutboxWriter outboxWriter,
+    IUnitOfWork unitOfWork) : IRequestHandler<PublishBookCommand, Result>
 {
     public async Task<Result> Handle(PublishBookCommand request, CancellationToken cancellationToken)
     {
@@ -38,21 +39,34 @@ public class PublishBookHandler(
             return Result.Failure(Error.Validation(ex.Message));
         }
 
-        await bookRepository.UpdateAsync(book, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        var authors = string.Join(", ", book.Authors.Select(a => a.Name));
+        try
+        {
+            await bookRepository.UpdateAsync(book, cancellationToken);
 
-        await outboxWriter.WriteAsync(
-            new Contracts.Catalog.V1.BookPublishedV1
-            {
-                BookId = book.Id,
-                Title = book.Title,
-                Authors = authors,
-                PublishedAt = book.UpdatedAt
-            },
-            Contracts.Common.EventTypes.BookPublished,
-            cancellationToken);
+            var authors = string.Join(", ", book.Authors.Select(a => a.Name));
 
-        return Result.Success();
+            await outboxWriter.WriteAsync(
+                new Contracts.Catalog.V1.BookPublishedV1
+                {
+                    BookId = book.Id,
+                    Title = book.Title,
+                    Authors = authors,
+                    PublishedAt = book.UpdatedAt
+                },
+                Contracts.Common.EventTypes.BookPublished,
+                cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            return Result.Success();
+        }
+        catch
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 }

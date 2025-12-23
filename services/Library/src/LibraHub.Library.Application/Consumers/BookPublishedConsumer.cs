@@ -17,13 +17,11 @@ public class BookPublishedConsumer(
 
         if (existing != null)
         {
-            // Update existing snapshot
             existing.Update(@event.Title, @event.Authors);
             await bookSnapshotStore.AddOrUpdateAsync(existing, cancellationToken);
         }
         else
         {
-            // Create new snapshot
             var snapshot = new BookSnapshot(
                 @event.BookId,
                 @event.Title,

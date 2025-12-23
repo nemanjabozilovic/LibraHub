@@ -14,7 +14,8 @@ public class RefundOrderHandler(
     IRefundRepository refundRepository,
     IOutboxWriter outboxWriter,
     ICurrentUser currentUser,
-    IClock clock) : IRequestHandler<RefundOrderCommand, Result>
+    IClock clock,
+    IUnitOfWork unitOfWork) : IRequestHandler<RefundOrderCommand, Result>
 {
     public async Task<Result> Handle(RefundOrderCommand request, CancellationToken cancellationToken)
     {
@@ -42,7 +43,6 @@ public class RefundOrderHandler(
             return Result.Failure(Error.NotFound(OrdersErrors.Payment.NotFound));
         }
 
-        // Create refund
         var refund = new Refund(
             Guid.NewGuid(),
             order.Id,
@@ -50,27 +50,38 @@ public class RefundOrderHandler(
             request.Reason,
             refundedBy);
 
-        await refundRepository.AddAsync(refund, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        // Update order
-        order.MarkAsRefunded();
-        await orderRepository.UpdateAsync(order, cancellationToken);
+        try
+        {
+            await refundRepository.AddAsync(refund, cancellationToken);
 
-        // Publish event
-        await outboxWriter.WriteAsync(
-            new Contracts.Orders.V1.OrderRefundedV1
-            {
-                OrderId = order.Id,
-                UserId = order.UserId,
-                RefundId = refund.Id,
-                Reason = request.Reason,
-                RefundedBy = refundedBy,
-                RefundedAt = clock.UtcNow
-            },
-            Contracts.Common.EventTypes.OrderRefunded,
-            cancellationToken);
+            order.MarkAsRefunded();
+            await orderRepository.UpdateAsync(order, cancellationToken);
 
-        return Result.Success();
+            await outboxWriter.WriteAsync(
+                new Contracts.Orders.V1.OrderRefundedV1
+                {
+                    OrderId = order.Id,
+                    UserId = order.UserId,
+                    RefundId = refund.Id,
+                    Reason = request.Reason,
+                    RefundedBy = refundedBy,
+                    RefundedAt = clock.UtcNow
+                },
+                Contracts.Common.EventTypes.OrderRefunded,
+                cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            return Result.Success();
+        }
+        catch
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 }
 

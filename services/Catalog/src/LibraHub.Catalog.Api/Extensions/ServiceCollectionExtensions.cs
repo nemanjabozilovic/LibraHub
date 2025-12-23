@@ -37,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPromotionRepository, PromotionRepository>();
 
         services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OutboxEventPublisher<CatalogDbContext>>();
+        services.AddScoped<BuildingBlocks.Abstractions.IUnitOfWork, Infrastructure.Persistence.UnitOfWork>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();

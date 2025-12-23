@@ -18,7 +18,6 @@ public class BookUpdatedConsumer(
         {
             logger.LogWarning("Book snapshot not found for BookId: {BookId}, creating new snapshot", @event.BookId);
 
-            // Create new snapshot if it doesn't exist
             var newSnapshot = new Domain.Books.BookSnapshot(
                 @event.BookId,
                 @event.Title,
@@ -28,7 +27,6 @@ public class BookUpdatedConsumer(
         }
         else
         {
-            // Update existing snapshot
             snapshot.Update(@event.Title, @event.Authors);
             await bookSnapshotStore.AddOrUpdateAsync(snapshot, cancellationToken);
         }

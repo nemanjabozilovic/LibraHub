@@ -1,3 +1,4 @@
+using LibraHub.BuildingBlocks.Abstractions;
 using LibraHub.BuildingBlocks.Results;
 using LibraHub.Identity.Application.Abstractions;
 using LibraHub.Identity.Domain.Users;
@@ -11,6 +12,7 @@ public class ResetPasswordHandler(
     IPasswordResetTokenRepository tokenRepository,
     IUserRepository userRepository,
     IPasswordHasher passwordHasher,
+    IUnitOfWork unitOfWork,
     ILogger<ResetPasswordHandler> logger) : IRequestHandler<ResetPasswordCommand, Result>
 {
     public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
@@ -48,21 +50,30 @@ public class ResetPasswordHandler(
             return Result.Failure(Error.Validation("Cannot reset password for inactive user"));
         }
 
-        // Hash new password
         var newPasswordHash = passwordHasher.HashPassword(request.NewPassword);
 
-        // Update user password using domain method
         user.UpdatePassword(newPasswordHash);
-
-        // Mark token as used
         token.MarkAsUsed();
 
-        // Save changes
-        await tokenRepository.UpdateAsync(token, cancellationToken);
-        await userRepository.UpdateAsync(user, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        logger.LogInformation("Password reset successful for user: {UserId}, Email: {Email}", user.Id, user.Email);
-        return Result.Success();
+        try
+        {
+            await tokenRepository.UpdateAsync(token, cancellationToken);
+            await userRepository.UpdateAsync(user, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            logger.LogInformation("Password reset successful for user: {UserId}, Email: {Email}", user.Id, user.Email);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Failed to reset password for user: {UserId}", user.Id);
+            throw;
+        }
     }
 }
 

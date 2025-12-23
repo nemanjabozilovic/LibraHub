@@ -34,18 +34,20 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
+        services.AddScoped<IInboxRepository, InboxRepository>();
+        services.AddScoped<BuildingBlocks.Abstractions.IUnitOfWork, UnitOfWork>();
 
         // Register SignalR
         services.AddSignalR();
 
         // Register NotificationHub wrapper
-        services.AddScoped<Application.Abstractions.INotificationHub, Hubs.NotificationHubWrapper>();
+        services.AddScoped<INotificationHub, Hubs.NotificationHubWrapper>();
 
         // Register notification sender
         services.AddScoped<INotificationSender, Infrastructure.Delivery.NotificationSender>();
 
         services.Configure<Infrastructure.Options.NotificationsOptions>(configuration.GetSection(Infrastructure.Options.NotificationsOptions.SectionName));
-        services.AddHttpClient<Application.Abstractions.IIdentityClient, Infrastructure.Clients.IdentityClient>();
+        services.AddHttpClient<IIdentityClient, Infrastructure.Clients.IdentityClient>();
 
         services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OutboxEventPublisher<NotificationsDbContext>>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();

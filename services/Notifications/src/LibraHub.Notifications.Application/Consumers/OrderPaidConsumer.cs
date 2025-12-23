@@ -1,5 +1,7 @@
+using LibraHub.BuildingBlocks.Abstractions;
 using LibraHub.Contracts.Orders.V1;
 using LibraHub.Notifications.Application.Abstractions;
+using LibraHub.Notifications.Application.Constants;
 using LibraHub.Notifications.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 
@@ -10,16 +12,28 @@ public class OrderPaidConsumer(
     INotificationPreferencesRepository preferencesRepository,
     INotificationSender notificationSender,
     IIdentityClient identityClient,
+    IInboxRepository inboxRepository,
+    IUnitOfWork unitOfWork,
     ILogger<OrderPaidConsumer> logger)
 {
+    private const string EventType = EventTypes.OrderPaidV1;
+
     public async Task HandleAsync(OrderPaidV1 @event, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Processing OrderPaid event for OrderId: {OrderId}, UserId: {UserId}",
-            @event.OrderId, @event.UserId);
+        var messageId = $"OrderPaid_{@event.OrderId}";
+
+        logger.LogInformation("Processing OrderPaid event for OrderId: {OrderId}, UserId: {UserId}, MessageId: {MessageId}",
+            @event.OrderId, @event.UserId, messageId);
+
+        if (await inboxRepository.IsProcessedAsync(messageId, cancellationToken))
+        {
+            logger.LogInformation("OrderPaid event already processed for MessageId: {MessageId}, OrderId: {OrderId}",
+                messageId, @event.OrderId);
+            return;
+        }
 
         var userId = @event.UserId;
 
-        // Check user preferences
         var preference = await preferencesRepository.GetByUserIdAndTypeAsync(
             userId,
             NotificationType.OrderPaid,
@@ -28,45 +42,82 @@ public class OrderPaidConsumer(
         var emailEnabled = preference?.EmailEnabled ?? true;
         var inAppEnabled = preference?.InAppEnabled ?? true;
 
-        if (inAppEnabled)
-        {
-            // Create in-app notification
-            var notification = new Notification(
-                Guid.NewGuid(),
-                userId,
-                NotificationType.OrderPaid,
-                "Your order has been paid",
-                $"Order #{@event.OrderId} has been successfully paid. Total: {@event.Total} {@event.Currency}");
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            await notificationRepository.AddAsync(notification, cancellationToken);
-            await notificationSender.SendInAppAsync(userId, notification.Title, notification.Message, cancellationToken);
+        try
+        {
+            Notification? notification = null;
+
+            if (inAppEnabled)
+            {
+                notification = new Notification(
+                    Guid.NewGuid(),
+                    userId,
+                    NotificationType.OrderPaid,
+                    NotificationMessages.OrderPaid.Title,
+                    NotificationMessages.OrderPaid.GetMessage(@event.OrderId, @event.Total, @event.Currency));
+
+                await notificationRepository.AddAsync(notification, cancellationToken);
+            }
+
+            await inboxRepository.MarkAsProcessedAsync(messageId, EventType, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (notification != null)
+            {
+                try
+                {
+                    await notificationSender.SendInAppAsync(userId, notification.Title, notification.Message, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send in-app notification to UserId: {UserId} for OrderId: {OrderId}",
+                        userId, @event.OrderId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Failed to process OrderPaid event for OrderId: {OrderId}, MessageId: {MessageId}",
+                @event.OrderId, messageId);
+            throw;
         }
 
         if (emailEnabled)
         {
-            // Get user info from Identity service
-            var userInfo = await identityClient.GetUserInfoAsync(userId, cancellationToken);
+            try
+            {
+                var userInfo = await identityClient.GetUserInfoAsync(userId, cancellationToken);
 
-            if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email))
-            {
-                var emailSubject = "Order Payment Confirmation";
-                var emailModel = new
+                if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.IsActive)
                 {
-                    FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
-                    OrderId = @event.OrderId,
-                    Total = @event.Total,
-                    Currency = @event.Currency
-                };
-                await notificationSender.SendEmailWithTemplateAsync(
-                    userInfo.Email,
-                    emailSubject,
-                    "ORDER_PAID",
-                    emailModel,
-                    cancellationToken);
+                    var emailSubject = NotificationMessages.OrderPaid.Title;
+                    var emailModel = new
+                    {
+                        FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
+                        OrderId = @event.OrderId,
+                        Total = @event.Total,
+                        Currency = @event.Currency
+                    };
+                    await notificationSender.SendEmailWithTemplateAsync(
+                        userInfo.Email,
+                        emailSubject,
+                        "ORDER_PAID",
+                        emailModel,
+                        cancellationToken);
+                }
+                else
+                {
+                    logger.LogWarning("User info not found, inactive, or email not available for UserId: {UserId}, skipping email notification", userId);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                logger.LogWarning("User info not found or email not available for UserId: {UserId}, skipping email notification", userId);
+                logger.LogError(ex, "Failed to send email notification to UserId: {UserId} for OrderId: {OrderId}",
+                    userId, @event.OrderId);
             }
         }
 

@@ -1,5 +1,7 @@
+using LibraHub.BuildingBlocks.Abstractions;
 using LibraHub.Contracts.Library.V1;
 using LibraHub.Notifications.Application.Abstractions;
+using LibraHub.Notifications.Application.Constants;
 using LibraHub.Notifications.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 
@@ -10,16 +12,28 @@ public class EntitlementGrantedConsumer(
     INotificationPreferencesRepository preferencesRepository,
     INotificationSender notificationSender,
     IIdentityClient identityClient,
+    IInboxRepository inboxRepository,
+    IUnitOfWork unitOfWork,
     ILogger<EntitlementGrantedConsumer> logger)
 {
+    private const string EventType = EventTypes.EntitlementGrantedV1;
+
     public async Task HandleAsync(EntitlementGrantedV1 @event, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Processing EntitlementGranted event for UserId: {UserId}, BookId: {BookId}",
-            @event.UserId, @event.BookId);
+        var messageId = $"EntitlementGranted_{@event.UserId}_{@event.BookId}";
+
+        logger.LogInformation("Processing EntitlementGranted event for UserId: {UserId}, BookId: {BookId}, MessageId: {MessageId}",
+            @event.UserId, @event.BookId, messageId);
+
+        if (await inboxRepository.IsProcessedAsync(messageId, cancellationToken))
+        {
+            logger.LogInformation("EntitlementGranted event already processed for MessageId: {MessageId}, UserId: {UserId}, BookId: {BookId}",
+                messageId, @event.UserId, @event.BookId);
+            return;
+        }
 
         var userId = @event.UserId;
 
-        // Check user preferences
         var preference = await preferencesRepository.GetByUserIdAndTypeAsync(
             userId,
             NotificationType.EntitlementGranted,
@@ -28,43 +42,80 @@ public class EntitlementGrantedConsumer(
         var emailEnabled = preference?.EmailEnabled ?? true;
         var inAppEnabled = preference?.InAppEnabled ?? true;
 
-        if (inAppEnabled)
-        {
-            // Create in-app notification
-            var notification = new Notification(
-                Guid.NewGuid(),
-                userId,
-                NotificationType.EntitlementGranted,
-                "Book added to your library",
-                $"A new book has been added to your library. Book ID: {@event.BookId}");
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            await notificationRepository.AddAsync(notification, cancellationToken);
-            await notificationSender.SendInAppAsync(userId, notification.Title, notification.Message, cancellationToken);
+        try
+        {
+            Notification? notification = null;
+
+            if (inAppEnabled)
+            {
+                notification = new Notification(
+                    Guid.NewGuid(),
+                    userId,
+                    NotificationType.EntitlementGranted,
+                    NotificationMessages.EntitlementGranted.Title,
+                    NotificationMessages.EntitlementGranted.GetMessage(@event.BookId));
+
+                await notificationRepository.AddAsync(notification, cancellationToken);
+            }
+
+            await inboxRepository.MarkAsProcessedAsync(messageId, EventType, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (notification != null)
+            {
+                try
+                {
+                    await notificationSender.SendInAppAsync(userId, notification.Title, notification.Message, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send in-app notification to UserId: {UserId} for BookId: {BookId}",
+                        userId, @event.BookId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Failed to process EntitlementGranted event for UserId: {UserId}, BookId: {BookId}, MessageId: {MessageId}",
+                @event.UserId, @event.BookId, messageId);
+            throw;
         }
 
         if (emailEnabled)
         {
-            // Get user info from Identity service
-            var userInfo = await identityClient.GetUserInfoAsync(userId, cancellationToken);
+            try
+            {
+                var userInfo = await identityClient.GetUserInfoAsync(userId, cancellationToken);
 
-            if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email))
-            {
-                var emailSubject = "Book Added to Your Library";
-                var emailModel = new
+                if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.IsActive)
                 {
-                    FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
-                    BookId = @event.BookId
-                };
-                await notificationSender.SendEmailWithTemplateAsync(
-                    userInfo.Email,
-                    emailSubject,
-                    "ENTITLEMENT_GRANTED",
-                    emailModel,
-                    cancellationToken);
+                    var emailSubject = NotificationMessages.EntitlementGranted.Title;
+                    var emailModel = new
+                    {
+                        FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
+                        BookId = @event.BookId
+                    };
+                    await notificationSender.SendEmailWithTemplateAsync(
+                        userInfo.Email,
+                        emailSubject,
+                        "ENTITLEMENT_GRANTED",
+                        emailModel,
+                        cancellationToken);
+                }
+                else
+                {
+                    logger.LogWarning("User info not found, inactive, or email not available for UserId: {UserId}, skipping email notification", userId);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                logger.LogWarning("User info not found or email not available for UserId: {UserId}, skipping email notification", userId);
+                logger.LogError(ex, "Failed to send email notification to UserId: {UserId} for BookId: {BookId}",
+                    userId, @event.BookId);
             }
         }
 

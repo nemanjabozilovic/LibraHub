@@ -1,6 +1,7 @@
 using LibraHub.BuildingBlocks.Abstractions;
 using LibraHub.BuildingBlocks.Results;
 using LibraHub.Identity.Application.Abstractions;
+using LibraHub.Identity.Application.Constants;
 using LibraHub.Identity.Domain.Tokens;
 using LibraHub.Identity.Domain.Users;
 using MediatR;
@@ -17,6 +18,7 @@ public class CreateUserHandler(
     IPasswordHasher passwordHasher,
     IEmailSender emailSender,
     IConfiguration configuration,
+    IUnitOfWork unitOfWork,
     ILogger<CreateUserHandler> logger) : IRequestHandler<CreateUserCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
@@ -28,42 +30,53 @@ public class CreateUserHandler(
             return Result.Failure<Guid>(Error.Conflict("Email already exists"));
         }
 
-        // Generate temporary password
         var tempPassword = GenerateTemporaryPassword();
         var passwordHash = passwordHasher.HashPassword(tempPassword);
 
-        // Create user with minimal data
         var user = new User(
             Guid.NewGuid(),
             emailLower,
             passwordHash,
-            string.Empty, // FirstName - will be set during completion
-            string.Empty, // LastName - will be set during completion
-            null, // Phone
-            null); // DateOfBirth
+            string.Empty,
+            string.Empty,
+            null,
+            null);
 
-        // Remove default User role and add requested role
         user.RemoveRole(Role.User);
         user.AddRole(request.Role);
 
-        await userRepository.AddAsync(user, cancellationToken);
+        string completionToken;
 
-        // Generate registration completion token
-        var completionToken = tokenService.GenerateToken();
-        var tokenExpiration = tokenService.GetExpiration();
-        var registrationToken = new RegistrationCompletionToken(
-            Guid.NewGuid(),
-            user.Id,
-            completionToken,
-            tokenExpiration);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        await tokenRepository.AddAsync(registrationToken, cancellationToken);
+        try
+        {
+            await userRepository.AddAsync(user, cancellationToken);
 
-        // Send email with completion link
+            completionToken = tokenService.GenerateToken();
+            var tokenExpiration = tokenService.GetExpiration();
+            var registrationToken = new RegistrationCompletionToken(
+                Guid.NewGuid(),
+                user.Id,
+                completionToken,
+                tokenExpiration);
+
+            await tokenRepository.AddAsync(registrationToken, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Failed to create user with email: {Email}", emailLower);
+            throw;
+        }
+
         var frontendUrl = configuration["Frontend:BaseUrl"]
             ?? throw new InvalidOperationException("Frontend:BaseUrl configuration is required");
         var completionLink = $"{frontendUrl}/complete-registration?token={completionToken}";
-        var emailSubject = "Complete Your LibraHub Registration";
+        var emailSubject = EmailMessages.CompleteRegistration;
         var emailModel = new
         {
             Email = user.Email,
@@ -83,7 +96,6 @@ public class CreateUserHandler(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to send registration completion email to {Email}", user.Email);
-            // Don't fail user creation if email sending fails
         }
 
         return Result.Success(user.Id);
@@ -91,7 +103,6 @@ public class CreateUserHandler(
 
     private static string GenerateTemporaryPassword()
     {
-        // Generate a secure temporary password
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
         var random = new Random();
         return new string(Enumerable.Repeat(chars, 16)

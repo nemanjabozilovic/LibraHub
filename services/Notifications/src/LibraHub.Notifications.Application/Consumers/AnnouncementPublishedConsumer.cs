@@ -1,5 +1,8 @@
+using LibraHub.BuildingBlocks.Abstractions;
 using LibraHub.Contracts.Catalog.V1;
 using LibraHub.Notifications.Application.Abstractions;
+using LibraHub.Notifications.Application.Constants;
+using LibraHub.Notifications.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 
 namespace LibraHub.Notifications.Application.Consumers;
@@ -8,17 +11,150 @@ public class AnnouncementPublishedConsumer(
     INotificationRepository notificationRepository,
     INotificationPreferencesRepository preferencesRepository,
     INotificationSender notificationSender,
+    IIdentityClient identityClient,
+    IInboxRepository inboxRepository,
+    IUnitOfWork unitOfWork,
     ILogger<AnnouncementPublishedConsumer> logger)
 {
+    private const string EventType = EventTypes.AnnouncementPublishedV1;
+
     public async Task HandleAsync(AnnouncementPublishedV1 @event, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Processing AnnouncementPublished event for AnnouncementId: {AnnouncementId}, BookId: {BookId}",
-            @event.AnnouncementId, @event.BookId);
+        var messageId = $"AnnouncementPublished_{@event.AnnouncementId}";
 
-        // This would require user subscription system
-        // For now, we'll log and skip
+        logger.LogInformation("Processing AnnouncementPublished event for AnnouncementId: {AnnouncementId}, BookId: {BookId}, Title: {Title}, MessageId: {MessageId}",
+            @event.AnnouncementId, @event.BookId, @event.Title, messageId);
 
-        logger.LogInformation("AnnouncementPublished event processed for AnnouncementId: {AnnouncementId}", @event.AnnouncementId);
+        if (await inboxRepository.IsProcessedAsync(messageId, cancellationToken))
+        {
+            logger.LogInformation("AnnouncementPublished event already processed for MessageId: {MessageId}, AnnouncementId: {AnnouncementId}",
+                messageId, @event.AnnouncementId);
+            return;
+        }
+
+        var allUserIds = await preferencesRepository.GetUserIdsWithEnabledNotificationsAsync(
+            NotificationType.AnnouncementPublished,
+            cancellationToken);
+
+        logger.LogInformation("Found {Count} users with AnnouncementPublished notifications enabled for AnnouncementId: {AnnouncementId}",
+            allUserIds.Count, @event.AnnouncementId);
+
+        var notificationsToCreate = new List<Notification>();
+        var emailTasks = new List<Task>();
+
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            foreach (var userId in allUserIds)
+            {
+                try
+                {
+                    var preference = await preferencesRepository.GetByUserIdAndTypeAsync(
+                        userId,
+                        NotificationType.AnnouncementPublished,
+                        cancellationToken);
+
+                    var emailEnabled = preference?.EmailEnabled ?? true;
+                    var inAppEnabled = preference?.InAppEnabled ?? true;
+
+                    if (inAppEnabled)
+                    {
+                        var notification = new Notification(
+                            Guid.NewGuid(),
+                            userId,
+                            NotificationType.AnnouncementPublished,
+                            NotificationMessages.AnnouncementPublished.Title,
+                            NotificationMessages.AnnouncementPublished.GetMessage(@event.Title));
+
+                        notificationsToCreate.Add(notification);
+                    }
+
+                    if (emailEnabled)
+                    {
+                        var userInfo = await identityClient.GetUserInfoAsync(userId, cancellationToken);
+
+                        if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.IsActive)
+                        {
+                            var emailSubject = NotificationMessages.AnnouncementPublished.Title;
+                            var emailModel = new
+                            {
+                                FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
+                                AnnouncementTitle = @event.Title,
+                                BookId = @event.BookId,
+                                AnnouncementId = @event.AnnouncementId,
+                                PublishedAt = @event.PublishedAt
+                            };
+
+                            emailTasks.Add(Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await notificationSender.SendEmailWithTemplateAsync(
+                                        userInfo.Email,
+                                        emailSubject,
+                                        "ANNOUNCEMENT_PUBLISHED",
+                                        emailModel,
+                                        cancellationToken);
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger.LogError(ex, "Failed to send email notification to UserId: {UserId} for AnnouncementId: {AnnouncementId}",
+                                        userId, @event.AnnouncementId);
+                                }
+                            }, cancellationToken));
+                        }
+                        else
+                        {
+                            logger.LogWarning("User info not found, inactive, or email not available for UserId: {UserId}, skipping email notification", userId);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to process AnnouncementPublished notification for UserId: {UserId} for AnnouncementId: {AnnouncementId}",
+                        userId, @event.AnnouncementId);
+                }
+            }
+
+            if (notificationsToCreate.Count > 0)
+            {
+                await notificationRepository.AddRangeAsync(notificationsToCreate, cancellationToken);
+            }
+
+            await inboxRepository.MarkAsProcessedAsync(messageId, EventType, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            logger.LogInformation("AnnouncementPublished event processed successfully for AnnouncementId: {AnnouncementId}, created {Count} notifications",
+                @event.AnnouncementId, notificationsToCreate.Count);
+
+            foreach (var notification in notificationsToCreate)
+            {
+                try
+                {
+                    await notificationSender.SendInAppAsync(notification.UserId, notification.Title, notification.Message, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send in-app notification to UserId: {UserId} for AnnouncementId: {AnnouncementId}",
+                        notification.UserId, @event.AnnouncementId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Failed to process AnnouncementPublished event for AnnouncementId: {AnnouncementId}, MessageId: {MessageId}",
+                @event.AnnouncementId, messageId);
+            throw;
+        }
+
+        if (emailTasks.Count > 0)
+        {
+            await Task.WhenAll(emailTasks);
+        }
     }
 }
 

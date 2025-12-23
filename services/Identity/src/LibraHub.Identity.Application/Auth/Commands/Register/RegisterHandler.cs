@@ -3,6 +3,7 @@ using LibraHub.BuildingBlocks.Results;
 using LibraHub.Contracts.Common;
 using LibraHub.Contracts.Identity.V1;
 using LibraHub.Identity.Application.Abstractions;
+using LibraHub.Identity.Application.Constants;
 using LibraHub.Identity.Domain.Users;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ public class RegisterHandler(
     IOutboxWriter outboxWriter,
     IEmailSender emailSender,
     IClock clock,
+    IUnitOfWork unitOfWork,
     ILogger<RegisterHandler> logger) : IRequestHandler<RegisterCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -39,21 +41,42 @@ public class RegisterHandler(
             request.Phone,
             request.DateOfBirth);
 
-        await userRepository.AddAsync(user, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        // Generate email verification token
-        var verificationToken = tokenService.GenerateToken();
-        var tokenExpiration = tokenService.GetExpiration();
-        var emailVerificationToken = new Domain.Tokens.EmailVerificationToken(
-            Guid.NewGuid(),
-            user.Id,
-            verificationToken,
-            tokenExpiration);
+        try
+        {
+            await userRepository.AddAsync(user, cancellationToken);
 
-        await tokenRepository.AddAsync(emailVerificationToken, cancellationToken);
+            var verificationToken = tokenService.GenerateToken();
+            var tokenExpiration = tokenService.GetExpiration();
+            var emailVerificationToken = new Domain.Tokens.EmailVerificationToken(
+                Guid.NewGuid(),
+                user.Id,
+                verificationToken,
+                tokenExpiration);
 
-        // Send welcome email with temporary password
-        var emailSubject = "Welcome to LibraHub";
+            await tokenRepository.AddAsync(emailVerificationToken, cancellationToken);
+
+            var integrationEvent = new UserRegisteredV1
+            {
+                UserId = user.Id,
+                Email = user.Email,
+                OccurredAt = clock.UtcNow
+            };
+
+            await outboxWriter.WriteAsync(integrationEvent, EventTypes.UserRegistered, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Failed to register user with email: {Email}", emailLower);
+            throw;
+        }
+
+        var emailSubject = EmailMessages.Welcome;
         var emailModel = new
         {
             FullName = !string.IsNullOrWhiteSpace(user.DisplayName) ? user.DisplayName : user.Email,
@@ -72,18 +95,7 @@ public class RegisterHandler(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
-            // Don't fail registration if email sending fails
         }
-
-        // Publish integration event
-        var integrationEvent = new UserRegisteredV1
-        {
-            UserId = user.Id,
-            Email = user.Email,
-            OccurredAt = clock.UtcNow
-        };
-
-        await outboxWriter.WriteAsync(integrationEvent, EventTypes.UserRegistered, cancellationToken);
 
         return Result.Success(user.Id);
     }

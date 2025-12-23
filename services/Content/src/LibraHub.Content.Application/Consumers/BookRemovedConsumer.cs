@@ -14,7 +14,6 @@ public class BookRemovedConsumer(
     {
         logger.LogInformation("Processing BookRemoved event for BookId: {BookId}, Reason: {Reason}", @event.BookId, @event.Reason);
 
-        // Block all stored objects for this book
         var storedObjects = await storedObjectRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
         foreach (var obj in storedObjects)
         {
@@ -22,7 +21,6 @@ public class BookRemovedConsumer(
             await storedObjectRepository.UpdateAsync(obj, cancellationToken);
         }
 
-        // Block all editions
         var editions = await editionRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
         foreach (var edition in editions)
         {
@@ -30,7 +28,6 @@ public class BookRemovedConsumer(
             await editionRepository.UpdateAsync(edition, cancellationToken);
         }
 
-        // Block cover
         var cover = await coverRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
         if (cover != null)
         {

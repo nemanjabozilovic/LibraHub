@@ -15,7 +15,8 @@ public class CreateOrderHandler(
     IIdentityClient identityClient,
     ICurrentUser currentUser,
     IOutboxWriter outboxWriter,
-    IClock clock) : IRequestHandler<CreateOrderCommand, Result<Guid>>
+    IClock clock,
+    IUnitOfWork unitOfWork) : IRequestHandler<CreateOrderCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
@@ -107,7 +108,6 @@ public class CreateOrderHandler(
             vatTotal = vatTotal.Add(vatAmount);
         }
 
-        // Create order
         var order = new Order(
             orderId,
             userId,
@@ -116,36 +116,48 @@ public class CreateOrderHandler(
             vatTotal,
             subtotal.Add(vatTotal));
 
-        await orderRepository.AddAsync(order, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        // Publish event
-        await outboxWriter.WriteAsync(
-            new Contracts.Orders.V1.OrderCreatedV1
-            {
-                OrderId = order.Id,
-                UserId = order.UserId,
-                Items = order.Items.Select(i => new Contracts.Orders.V1.OrderItemDto
+        try
+        {
+            await orderRepository.AddAsync(order, cancellationToken);
+
+            await outboxWriter.WriteAsync(
+                new Contracts.Orders.V1.OrderCreatedV1
                 {
-                    BookId = i.BookId,
-                    BookTitle = i.BookTitle,
-                    BasePrice = i.BasePrice.Amount,
-                    FinalPrice = i.FinalPrice.Amount,
-                    VatRate = i.VatRate,
-                    VatAmount = i.VatAmount.Amount,
-                    PromotionId = i.PromotionId,
-                    PromotionName = i.PromotionName,
-                    DiscountAmount = i.DiscountAmount
-                }).ToList(),
-                Subtotal = order.Subtotal.Amount,
-                VatTotal = order.VatTotal.Amount,
-                Total = order.Total.Amount,
-                Currency = order.Currency,
-                CreatedAt = clock.UtcNow
-            },
-            Contracts.Common.EventTypes.OrderCreated,
-            cancellationToken);
+                    OrderId = order.Id,
+                    UserId = order.UserId,
+                    Items = order.Items.Select(i => new Contracts.Orders.V1.OrderItemDto
+                    {
+                        BookId = i.BookId,
+                        BookTitle = i.BookTitle,
+                        BasePrice = i.BasePrice.Amount,
+                        FinalPrice = i.FinalPrice.Amount,
+                        VatRate = i.VatRate,
+                        VatAmount = i.VatAmount.Amount,
+                        PromotionId = i.PromotionId,
+                        PromotionName = i.PromotionName,
+                        DiscountAmount = i.DiscountAmount
+                    }).ToList(),
+                    Subtotal = order.Subtotal.Amount,
+                    VatTotal = order.VatTotal.Amount,
+                    Total = order.Total.Amount,
+                    Currency = order.Currency,
+                    CreatedAt = clock.UtcNow
+                },
+                Contracts.Common.EventTypes.OrderCreated,
+                cancellationToken);
 
-        return Result.Success(order.Id);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            return Result.Success(order.Id);
+        }
+        catch
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 }
 
