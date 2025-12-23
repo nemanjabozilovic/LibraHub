@@ -14,7 +14,6 @@ public class Isbn
             throw new ArgumentException("ISBN cannot be empty", nameof(value));
         }
 
-        // Basic validation - can be enhanced with proper ISBN validation
         if (value.Length < 10 || value.Length > 17)
         {
             throw new ArgumentException("ISBN must be between 10 and 17 characters", nameof(value));

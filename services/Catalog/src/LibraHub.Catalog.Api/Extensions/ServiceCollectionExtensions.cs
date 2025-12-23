@@ -27,24 +27,19 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddCatalogApplicationServices(this IServiceCollection services)
     {
-        // MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssembly).Assembly));
-
-        // FluentValidation
         services.AddValidatorsFromAssembly(typeof(ApplicationAssembly).Assembly);
 
-        // Repositories
         services.AddScoped<IBookRepository, BookRepository>();
         services.AddScoped<IPricingRepository, PricingRepository>();
         services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
         services.AddScoped<IBookContentStateRepository, BookContentStateRepository>();
         services.AddScoped<IPromotionRepository, PromotionRepository>();
 
-        // Infrastructure services
         services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, CatalogEventPublisher>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
-        services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, Infrastructure.CurrentUser.CurrentUser>();
+        services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
 
         return services;
     }

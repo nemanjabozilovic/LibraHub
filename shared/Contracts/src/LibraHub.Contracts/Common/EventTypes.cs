@@ -23,4 +23,13 @@ public static class EventTypes
     public const string CoverUploaded = "Content.CoverUploaded.v1";
 
     public const string EditionUploaded = "Content.EditionUploaded.v1";
+    public const string ContentBlocked = "Content.ContentBlocked.v1";
+
+    // Orders events
+    public const string OrderCreated = "Orders.OrderCreated.v1";
+
+    public const string PaymentInitiated = "Orders.PaymentInitiated.v1";
+    public const string OrderPaid = "Orders.OrderPaid.v1";
+    public const string OrderCancelled = "Orders.OrderCancelled.v1";
+    public const string OrderRefunded = "Orders.OrderRefunded.v1";
 }

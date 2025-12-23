@@ -1,0 +1,71 @@
+using FluentValidation;
+using LibraHub.BuildingBlocks.Auth;
+using LibraHub.BuildingBlocks.Health;
+using LibraHub.BuildingBlocks.Messaging;
+using LibraHub.Orders.Application;
+using LibraHub.Orders.Application.Abstractions;
+using LibraHub.Orders.Infrastructure.Clients;
+using LibraHub.Orders.Infrastructure.Messaging;
+using LibraHub.Orders.Infrastructure.Options;
+using LibraHub.Orders.Infrastructure.Payments;
+using LibraHub.Orders.Infrastructure.Persistence;
+using LibraHub.Orders.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+
+namespace LibraHub.Orders.Api.Extensions;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddOrdersDatabase(this IServiceCollection services, IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("OrdersDb")
+            ?? throw new InvalidOperationException("Connection string 'OrdersDb' not found.");
+
+        services.AddDbContext<OrdersDbContext>(options =>
+            options.UseNpgsql(connectionString));
+
+        return services;
+    }
+
+    public static IServiceCollection AddOrdersApplicationServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssembly).Assembly));
+        services.AddValidatorsFromAssembly(typeof(ApplicationAssembly).Assembly);
+
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<IRefundRepository, RefundRepository>();
+
+        services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OrdersEventPublisher>();
+        services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
+        services.AddScoped<BuildingBlocks.Idempotency.IIdempotencyStore, Infrastructure.Idempotency.IdempotencyStore>();
+
+        services.Configure<Infrastructure.Options.MockPaymentOptions>(configuration.GetSection(Infrastructure.Options.MockPaymentOptions.SectionName));
+        services.AddScoped<IPaymentGateway, MockPaymentGateway>();
+
+        services.Configure<OrdersOptions>(configuration.GetSection(OrdersOptions.SectionName));
+        services.AddHttpClient<ICatalogPricingClient, CatalogPricingClient>();
+        services.AddHttpClient<ILibraryOwnershipClient, LibraryOwnershipClient>();
+        services.AddHttpClient<IIdentityClient, IdentityClient>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddOrdersJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
+    {
+        return services.AddLibraHubJwtAuthentication(configuration);
+    }
+
+    public static IServiceCollection AddOrdersRabbitMq(this IServiceCollection services, IConfiguration configuration)
+    {
+        return services.AddLibraHubRabbitMq<OrdersOutboxPublisherWorker>(configuration);
+    }
+
+    public static IServiceCollection AddOrdersHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    {
+        return services.AddLibraHubHealthChecks(configuration, "OrdersDb");
+    }
+}
+

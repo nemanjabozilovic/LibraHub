@@ -5,7 +5,6 @@ using LibraHub.BuildingBlocks.Messaging;
 using LibraHub.Identity.Application;
 using LibraHub.Identity.Application.Abstractions;
 using LibraHub.Identity.Application.Options;
-using LibraHub.Identity.Infrastructure.CurrentUser;
 using LibraHub.Identity.Infrastructure.Messaging;
 using LibraHub.Identity.Infrastructure.Options;
 using LibraHub.Identity.Infrastructure.Persistence;
@@ -30,29 +29,22 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddIdentityApplicationServices(this IServiceCollection services)
     {
-        // MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssembly).Assembly));
-
-        // FluentValidation
         services.AddValidatorsFromAssembly(typeof(ApplicationAssembly).Assembly);
 
-        // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationTokenRepository>();
 
-        // Security services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IEmailVerificationTokenService, EmailVerificationTokenService>();
 
-        // Infrastructure services
         services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, IdentityEventPublisher>();
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
-        services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, CurrentUser>();
+        services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
 
-        // Database seeder
         services.AddScoped<DatabaseSeeder>();
 
         return services;
