@@ -26,7 +26,6 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<GetMeRespons
 
     public async Task<Result<GetMeResponseDto>> Handle(GetMeQuery request, CancellationToken cancellationToken)
     {
-        // Extract userId from current user
         if (!_currentUser.UserId.HasValue)
         {
             _logger.LogWarning("Invalid or missing user ID in token");
@@ -35,7 +34,6 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<GetMeRespons
 
         var userId = _currentUser.UserId.Value;
 
-        // Load user from database
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
         if (user == null)
         {
@@ -43,14 +41,12 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<GetMeRespons
             return Result.Failure<GetMeResponseDto>(Error.Unauthorized("User not found"));
         }
 
-        // Check account status
         if (user.Status != UserStatus.Active)
         {
             _logger.LogWarning("User account is not active: {UserId}, Status: {Status}", userId, user.Status);
             return Result.Failure<GetMeResponseDto>(Error.Forbidden("Account is disabled"));
         }
 
-        // Get roles from database
         var roles = user.Roles.Select(r => r.Role.ToString()).ToList();
 
         var response = new GetMeResponseDto

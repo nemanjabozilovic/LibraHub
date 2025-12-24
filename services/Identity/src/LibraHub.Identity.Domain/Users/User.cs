@@ -37,7 +37,6 @@ public class User
         Status = UserStatus.Active;
         CreatedAt = DateTime.UtcNow;
         FailedLoginAttempts = 0;
-        _roles.Add(new UserRole(Id, Role.User));
     }
 
     public void MarkEmailAsVerified()

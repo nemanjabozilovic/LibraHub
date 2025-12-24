@@ -15,14 +15,14 @@ public class UpdateProgressHandler(
 {
     public async Task<Result> Handle(UpdateProgressCommand request, CancellationToken cancellationToken)
     {
-        if (!currentUser.UserId.HasValue)
+        var userIdResult = currentUser.RequireUserId(LibraryErrors.User.NotAuthenticated);
+        if (userIdResult.IsFailure)
         {
-            return Result.Failure(Error.Unauthorized(LibraryErrors.User.NotAuthenticated));
+            return Result.Failure(userIdResult.Error!);
         }
 
-        var userId = currentUser.UserId.Value;
+        var userId = userIdResult.Value;
 
-        // Check if user has access to the book
         var hasAccess = await entitlementRepository.HasAccessAsync(userId, request.BookId, cancellationToken);
         if (!hasAccess)
         {

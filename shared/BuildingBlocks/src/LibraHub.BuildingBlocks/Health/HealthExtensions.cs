@@ -14,7 +14,6 @@ public static class HealthExtensions
     {
         var checks = new List<HealthCheckResultDto>();
 
-        // Check PostgreSQL
         var dbHealth = await healthCheckService.CheckHealthAsync(
             predicate: check => check.Tags.Contains("database"),
             cancellationToken: cancellationToken);
@@ -33,7 +32,6 @@ public static class HealthExtensions
             Description = dbDescription
         });
 
-        // Check RabbitMQ
         var rabbitMqHealthy = CheckRabbitMq(rabbitMqConnection, logger);
         checks.Add(new HealthCheckResultDto
         {
@@ -65,7 +63,6 @@ public static class HealthExtensions
                 return false;
             }
 
-            // Try to create a channel to verify connection is working
             using var channel = connection.CreateModel();
             return channel.IsOpen;
         }

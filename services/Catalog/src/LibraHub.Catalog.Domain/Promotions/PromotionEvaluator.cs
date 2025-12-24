@@ -39,7 +39,6 @@ public class PromotionEvaluator
             return null;
         }
 
-        // Apply stacking policy: Best discount wins
         PromotionResult? bestResult = null;
         decimal bestFinalPrice = basePrice;
 
@@ -69,13 +68,11 @@ public class PromotionEvaluator
 
     private bool IsBookEligible(Book book, PromotionRule rule)
     {
-        // Check exclusions
         if (rule.Exclusions != null && rule.Exclusions.Contains(book.Id))
         {
             return false;
         }
 
-        // Check scope
         return rule.AppliesToScope switch
         {
             PromotionScope.All => true,

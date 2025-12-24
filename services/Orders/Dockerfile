@@ -18,20 +18,20 @@ COPY ["shared/BuildingBlocks/src/LibraHub.BuildingBlocks/LibraHub.BuildingBlocks
 COPY ["shared/Contracts/src/LibraHub.Contracts/LibraHub.Contracts.csproj", "shared/Contracts/src/LibraHub.Contracts/"]
 
 # Copy Orders projects
-COPY ["services/Orders/src/Orders/LibraHub.Orders.Domain/LibraHub.Orders.Domain.csproj", "services/Orders/src/Orders/LibraHub.Orders.Domain/"]
-COPY ["services/Orders/src/Orders/LibraHub.Orders.Application/LibraHub.Orders.Application.csproj", "services/Orders/src/Orders/LibraHub.Orders.Application/"]
-COPY ["services/Orders/src/Orders/LibraHub.Orders.Infrastructure/LibraHub.Orders.Infrastructure.csproj", "services/Orders/src/Orders/LibraHub.Orders.Infrastructure/"]
-COPY ["services/Orders/src/Orders/LibraHub.Orders.Api/LibraHub.Orders.Api.csproj", "services/Orders/src/Orders/LibraHub.Orders.Api/"]
+COPY ["services/Orders/src/LibraHub.Orders.Domain/LibraHub.Orders.Domain.csproj", "services/Orders/src/LibraHub.Orders.Domain/"]
+COPY ["services/Orders/src/LibraHub.Orders.Application/LibraHub.Orders.Application.csproj", "services/Orders/src/LibraHub.Orders.Application/"]
+COPY ["services/Orders/src/LibraHub.Orders.Infrastructure/LibraHub.Orders.Infrastructure.csproj", "services/Orders/src/LibraHub.Orders.Infrastructure/"]
+COPY ["services/Orders/src/LibraHub.Orders.Api/LibraHub.Orders.Api.csproj", "services/Orders/src/LibraHub.Orders.Api/"]
 
 # Restore dependencies
-RUN dotnet restore "services/Orders/src/Orders/LibraHub.Orders.Api/LibraHub.Orders.Api.csproj"
+RUN dotnet restore "services/Orders/src/LibraHub.Orders.Api/LibraHub.Orders.Api.csproj"
 
 # Copy all source files
 COPY shared/ shared/
 COPY services/Orders/ services/Orders/
 
 # Build
-WORKDIR "/src/services/Orders/src/Orders/LibraHub.Orders.Api"
+WORKDIR "/src/services/Orders/src/LibraHub.Orders.Api"
 RUN dotnet build "LibraHub.Orders.Api.csproj" -c Release -o /app/build
 
 FROM build AS publish

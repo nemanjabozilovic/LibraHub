@@ -10,10 +10,6 @@ namespace LibraHub.Library.Infrastructure.Persistence;
 
 public class LibraryDbContext : DbContext
 {
-    public LibraryDbContext()
-    {
-    }
-
     public LibraryDbContext(DbContextOptions<LibraryDbContext> options) : base(options)
     {
     }

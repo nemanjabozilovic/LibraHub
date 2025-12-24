@@ -3,6 +3,7 @@ using LibraHub.BuildingBlocks.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+
 using Minio;
 
 namespace LibraHub.BuildingBlocks.Storage;
@@ -11,7 +12,10 @@ public static class StorageExtensions
 {
     public static IServiceCollection AddLibraHubMinioStorage(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
+        services.AddOptions<StorageOptions>()
+            .Bind(configuration.GetSection(StorageOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddSingleton<MinioClient>(sp =>
         {

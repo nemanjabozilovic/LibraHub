@@ -91,6 +91,7 @@ public class OrderConfig : IEntityTypeConfiguration<Order>
         builder.HasIndex(x => x.UserId);
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.CreatedAt);
+        builder.HasIndex(x => new { x.UserId, x.Status });
     }
 }
 

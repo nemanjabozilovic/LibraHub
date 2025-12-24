@@ -49,7 +49,6 @@ public class DatabaseSeeder
             lastName: "User");
 
         adminUser.MarkEmailAsVerified();
-        adminUser.RemoveRole(Role.User); // Remove default User role
         adminUser.AddRole(Role.Admin);
 
         _context.Users.Add(adminUser);

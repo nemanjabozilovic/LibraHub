@@ -2,9 +2,10 @@ using LibraHub.BuildingBlocks.Abstractions;
 using LibraHub.BuildingBlocks.Results;
 using LibraHub.Identity.Application.Abstractions;
 using LibraHub.Identity.Application.Constants;
+using LibraHub.Identity.Application.Options;
 using MediatR;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace LibraHub.Identity.Application.Auth.Commands.ForgotPassword;
 
@@ -13,7 +14,7 @@ public class ForgotPasswordHandler(
     IPasswordResetTokenRepository tokenRepository,
     IPasswordResetTokenService tokenService,
     IEmailSender emailSender,
-    IConfiguration configuration,
+    IOptions<FrontendOptions> frontendOptions,
     ILogger<ForgotPasswordHandler> logger) : IRequestHandler<ForgotPasswordCommand, Result>
 {
     public async Task<Result> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
@@ -37,7 +38,7 @@ public class ForgotPasswordHandler(
 
         await tokenRepository.AddAsync(passwordResetToken, cancellationToken);
 
-        var frontendUrl = configuration["Frontend:BaseUrl"] ?? "http://localhost:3000";
+        var frontendUrl = frontendOptions.Value.BaseUrl;
         var resetLink = $"{frontendUrl}/reset-password?token={resetToken}";
 
         var emailSubject = EmailMessages.PasswordResetRequest;

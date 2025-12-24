@@ -23,17 +23,10 @@ public class HealthController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("live")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetLiveness()
-    {
-        return Ok(new { status = "Alive" });
-    }
-
-    [HttpGet("ready")]
+    [HttpGet]
     [ProducesResponseType(typeof(HealthResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HealthResponseDto), StatusCodes.Status503ServiceUnavailable)]
-    public async Task<IActionResult> GetReadiness(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetHealth(CancellationToken cancellationToken)
     {
         var health = await _healthCheckService.CheckHealthAsync(_rabbitMqConnection, _logger, cancellationToken);
 

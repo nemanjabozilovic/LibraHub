@@ -42,6 +42,22 @@ public class EntitlementRepository : IEntitlementRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Entitlement>> GetActiveByUserIdPagedAsync(Guid userId, int skip, int take, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .Where(e => e.UserId == userId && e.Status == EntitlementStatus.Active)
+            .OrderByDescending(e => e.AcquiredAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> CountActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .CountAsync(e => e.UserId == userId && e.Status == EntitlementStatus.Active, cancellationToken);
+    }
+
     public async Task<bool> HasAccessAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default)
     {
         return await _context.Entitlements

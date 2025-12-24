@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace LibraHub.Orders.Infrastructure.Options;
 
 public class MockPaymentOptions
@@ -7,29 +9,25 @@ public class MockPaymentOptions
     /// <summary>
     /// Probability of payment failure (0-100). 0 means always succeed, 100 means always fail.
     /// </summary>
-    public int FailureProbabilityPercent { get; set; } = 0;
+    [Range(0, 100, ErrorMessage = "FailureProbabilityPercent must be between 0 and 100")]
+    public int FailureProbabilityPercent { get; set; }
 
     /// <summary>
     /// If true, payments with amount ending in specific digits will fail (e.g., .99, .98)
     /// </summary>
-    public bool UseAmountBasedFailure { get; set; } = false;
+    public bool UseAmountBasedFailure { get; set; }
 
     /// <summary>
     /// Amount endings that trigger failure (e.g., ["99", "98"] means amounts ending in .99 or .98 will fail)
     /// </summary>
-    public List<string> FailureAmountEndings { get; set; } = new() { "99", "98" };
+    [Required(ErrorMessage = "FailureAmountEndings list is required")]
+    public List<string> FailureAmountEndings { get; set; } = null!;
 
     /// <summary>
     /// Failure reasons to randomly select from
     /// </summary>
-    public List<string> FailureReasons { get; set; } = new()
-    {
-        "Insufficient funds",
-        "Card declined",
-        "Payment gateway timeout",
-        "Invalid card details",
-        "Transaction limit exceeded",
-        "Network error"
-    };
+    [Required(ErrorMessage = "FailureReasons list is required and cannot be empty")]
+    [MinLength(1, ErrorMessage = "At least one failure reason must be provided")]
+    public List<string> FailureReasons { get; set; } = null!;
 }
 

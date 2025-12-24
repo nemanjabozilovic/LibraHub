@@ -19,12 +19,13 @@ public class StartPaymentHandler(
 {
     public async Task<Result<Guid>> Handle(StartPaymentCommand request, CancellationToken cancellationToken)
     {
-        if (!currentUser.UserId.HasValue)
+        var userIdResult = currentUser.RequireUserId(OrdersErrors.User.NotAuthenticated);
+        if (userIdResult.IsFailure)
         {
-            return Result.Failure<Guid>(Error.Unauthorized(OrdersErrors.User.NotAuthenticated));
+            return userIdResult;
         }
 
-        var userId = currentUser.UserId.Value;
+        var userId = userIdResult.Value;
 
         var order = await orderRepository.GetByIdAndUserIdAsync(request.OrderId, userId, cancellationToken);
         if (order == null)
@@ -42,7 +43,6 @@ public class StartPaymentHandler(
             return Result.Failure<Guid>(Error.Validation("Invalid payment provider"));
         }
 
-        // Initiate payment with gateway
         var paymentResult = await paymentGateway.InitiatePaymentAsync(
             order.Id,
             order.Total,
@@ -54,7 +54,6 @@ public class StartPaymentHandler(
             return Result.Failure<Guid>(new Error("INTERNAL_ERROR", $"Payment initiation failed: {paymentResult.FailureReason}"));
         }
 
-        // Create payment record
         var payment = new Payment(
             Guid.NewGuid(),
             order.Id,
@@ -65,11 +64,8 @@ public class StartPaymentHandler(
 
         await paymentRepository.AddAsync(payment, cancellationToken);
 
-        // Update order status
         order.StartPayment();
         await orderRepository.UpdateAsync(order, cancellationToken);
-
-        // Publish event
         await outboxWriter.WriteAsync(
             new Contracts.Orders.V1.PaymentInitiatedV1
             {

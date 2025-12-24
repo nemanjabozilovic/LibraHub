@@ -24,14 +24,14 @@ public class CreateReadTokenHandler(
 {
     public async Task<Result<string>> Handle(CreateReadTokenCommand request, CancellationToken cancellationToken)
     {
-        if (!currentUser.UserId.HasValue)
+        var userIdResult = currentUser.RequireUserId("User not authenticated");
+        if (userIdResult.IsFailure)
         {
-            return Result.Failure<string>(Error.Unauthorized("User not authenticated"));
+            return Result.Failure<string>(userIdResult.Error!);
         }
 
-        var userId = currentUser.UserId.Value;
+        var userId = userIdResult.Value;
 
-        // Check if book exists and is not blocked
         var bookInfo = await catalogClient.GetBookInfoAsync(request.BookId, cancellationToken);
         if (bookInfo == null)
         {
@@ -43,7 +43,6 @@ public class CreateReadTokenHandler(
             return Result.Failure<string>(Error.Validation(ContentErrors.Book.Blocked));
         }
 
-        // Check access: book must be free OR user must own it
         bool hasAccess = bookInfo.IsFree;
         if (!hasAccess)
         {
@@ -55,14 +54,12 @@ public class CreateReadTokenHandler(
             return Result.Failure<string>(Error.Forbidden(ContentErrors.Access.AccessDenied));
         }
 
-        // Determine scope and validate content exists
         AccessScope scope;
         BookFormat? format = null;
         int? version = null;
 
         if (string.IsNullOrEmpty(request.Format))
         {
-            // Cover access
             var cover = await coverRepository.GetByBookIdAsync(request.BookId, cancellationToken);
             if (cover == null || !cover.IsAccessible)
             {
@@ -72,7 +69,6 @@ public class CreateReadTokenHandler(
         }
         else
         {
-            // Edition access
             if (!Enum.TryParse<BookFormat>(request.Format, ignoreCase: true, out var parsedFormat))
             {
                 return Result.Failure<string>(Error.Validation(ContentErrors.Edition.InvalidFormat));
@@ -104,11 +100,8 @@ public class CreateReadTokenHandler(
             scope = AccessScope.Edition;
         }
 
-        // Generate token
         var token = GenerateSecureToken();
         var expiresAt = clock.UtcNow.AddMinutes(readAccessOptions.Value.TokenExpirationMinutes);
-
-        // Create access grant
         var grant = new AccessGrant(
             Guid.NewGuid(),
             token,

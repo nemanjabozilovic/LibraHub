@@ -12,6 +12,10 @@ public interface IEntitlementRepository
 
     Task<List<Entitlement>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    Task<List<Entitlement>> GetActiveByUserIdPagedAsync(Guid userId, int skip, int take, CancellationToken cancellationToken = default);
+
+    Task<int> CountActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<bool> HasAccessAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default);
 
     Task AddAsync(Entitlement entitlement, CancellationToken cancellationToken = default);

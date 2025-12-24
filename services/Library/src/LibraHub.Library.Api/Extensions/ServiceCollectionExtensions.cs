@@ -23,7 +23,11 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'LibraryDb' not found.");
 
         services.AddDbContext<LibraryDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+                })
+                   .UseLazyLoadingProxies());
 
         return services;
     }
@@ -51,7 +55,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Application.Consumers.BookUpdatedConsumer>();
         services.AddScoped<Application.Consumers.BookRemovedConsumer>();
 
-        services.Configure<LibraryOptions>(configuration.GetSection(LibraryOptions.SectionName));
+        services.AddOptions<LibraryOptions>().Bind(configuration.GetSection(LibraryOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
 
         return services;
     }

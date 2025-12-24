@@ -19,7 +19,6 @@ public class UploadAvatarHandler(
 
     public async Task<Result<string>> Handle(UploadAvatarCommand request, CancellationToken cancellationToken)
     {
-        // Validate file
         if (request.File == null || request.File.Length == 0)
         {
             return Result.Failure<string>(Error.Validation("File is required"));
@@ -36,7 +35,6 @@ public class UploadAvatarHandler(
             return Result.Failure<string>(Error.Validation($"Allowed file extensions: {string.Join(", ", AllowedExtensions)}"));
         }
 
-        // Check if user exists
         var user = await userRepository.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
         {
@@ -55,7 +53,6 @@ public class UploadAvatarHandler(
             return Result.Failure<string>(Error.Validation("Storage:ApiBaseUrl configuration is required"));
         }
 
-        // Delete old avatar if exists
         if (!string.IsNullOrWhiteSpace(user.Avatar))
         {
             try
@@ -72,10 +69,8 @@ public class UploadAvatarHandler(
             }
         }
 
-        // Generate object key
         var objectKey = $"users/{request.UserId}/avatar/{Guid.NewGuid()}{fileExtension}";
 
-        // Upload to object storage
         try
         {
             await objectStorage.UploadAsync(
@@ -91,7 +86,6 @@ public class UploadAvatarHandler(
             return Result.Failure<string>(Error.Validation("Failed to upload avatar"));
         }
 
-        // Generate avatar URL using API base URL
         var avatarUrl = $"{apiBaseUrl.TrimEnd('/')}/api/users/{request.UserId}/avatar/{objectKey}";
         user.UpdateAvatar(avatarUrl);
 
@@ -102,12 +96,9 @@ public class UploadAvatarHandler(
 
     private static string? ExtractObjectKeyFromUrl(string url)
     {
-        // Extract object key from URL
-        // Format: {apiBaseUrl}/api/users/{userId}/avatar/{objectKey}
         var uri = new Uri(url);
         var pathParts = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
 
-        // Find "avatar" segment and extract everything after it
         var avatarIndex = Array.IndexOf(pathParts, "avatar");
         if (avatarIndex >= 0 && avatarIndex < pathParts.Length - 1)
         {

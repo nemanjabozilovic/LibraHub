@@ -8,6 +8,7 @@ using LibraHub.BuildingBlocks.Outbox;
 using LibraHub.Notifications.Application;
 using LibraHub.Notifications.Application.Abstractions;
 using LibraHub.Notifications.Infrastructure.Idempotency;
+using LibraHub.Notifications.Infrastructure.Options;
 using LibraHub.Notifications.Infrastructure.Persistence;
 using LibraHub.Notifications.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -22,13 +23,17 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'NotificationsDb' not found.");
 
         services.AddDbContext<NotificationsDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+                }));
 
         return services;
     }
 
     public static IServiceCollection AddNotificationsApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddMemoryCache();
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssembly).Assembly));
         services.AddValidatorsFromAssembly(typeof(ApplicationAssembly).Assembly);
 
@@ -46,7 +51,8 @@ public static class ServiceCollectionExtensions
         // Register notification sender
         services.AddScoped<INotificationSender, Infrastructure.Delivery.NotificationSender>();
 
-        services.Configure<Infrastructure.Options.NotificationsOptions>(configuration.GetSection(Infrastructure.Options.NotificationsOptions.SectionName));
+        services.AddOptions<NotificationsOptions>().Bind(configuration.GetSection(NotificationsOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+
         services.AddHttpClient<IIdentityClient, Infrastructure.Clients.IdentityClient>();
 
         services.AddScoped<BuildingBlocks.Abstractions.IOutboxWriter, OutboxEventPublisher<NotificationsDbContext>>();

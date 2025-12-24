@@ -19,7 +19,10 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'CatalogDb' not found.");
 
         services.AddDbContext<CatalogDbContext>(options =>
-            options.UseNpgsql(connectionString)
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+                })
                    .UseLazyLoadingProxies());
 
         return services;

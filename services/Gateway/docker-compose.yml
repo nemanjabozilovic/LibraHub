@@ -1,0 +1,32 @@
+name: librahub-gateway
+
+services:
+  gateway-api:
+    build:
+      context: ../..
+      dockerfile: services/Gateway/Dockerfile
+    container_name: librahub-gateway-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Jwt__SecretKey=1CaAKnS5a3ukmWmB9mRVbh/9/S2FSam6JTMkuEXjVDnUY+AisXUNcwkPtifcGw0cX8W7ybaYQ84YIm6KJDlstA==
+      - Jwt__Issuer=LibraHub.Identity
+      - Jwt__Audience=LibraHub
+      - Services__Identity=http://identity-api:8080
+      - Services__Catalog=http://catalog-api:8080
+      - Services__Content=http://content-api:8080
+      - Services__Orders=http://orders-api:8080
+      - Services__Library=http://library-api:8080
+      - Services__Notifications=http://notifications-api:8080
+    ports:
+      - "5000:8080"
+      - "5001:8081"
+    networks:
+      - librahub-network
+    restart: unless-stopped
+
+networks:
+  librahub-network:
+    external: true
+    name: librahub_librahub-network
+

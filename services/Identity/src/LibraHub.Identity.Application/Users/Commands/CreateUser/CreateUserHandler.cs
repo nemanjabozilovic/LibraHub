@@ -30,30 +30,42 @@ public class CreateUserHandler(
             return Result.Failure<Guid>(Error.Conflict("Email already exists"));
         }
 
+        var user = CreateUser(emailLower, request.Role);
+        var completionToken = await SaveUserWithTokenAsync(user, cancellationToken);
+
+        await SendCompletionEmailAsync(user, completionToken, cancellationToken);
+
+        return Result.Success(user.Id);
+    }
+
+    private User CreateUser(string email, Role role)
+    {
         var tempPassword = GenerateTemporaryPassword();
         var passwordHash = passwordHasher.HashPassword(tempPassword);
 
         var user = new User(
             Guid.NewGuid(),
-            emailLower,
+            email,
             passwordHash,
             string.Empty,
             string.Empty,
             null,
             null);
 
-        user.RemoveRole(Role.User);
-        user.AddRole(request.Role);
+        user.AddRole(role);
 
-        string completionToken;
+        return user;
+    }
 
+    private async Task<string> SaveUserWithTokenAsync(User user, CancellationToken cancellationToken)
+    {
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
             await userRepository.AddAsync(user, cancellationToken);
 
-            completionToken = tokenService.GenerateToken();
+            var completionToken = tokenService.GenerateToken();
             var tokenExpiration = tokenService.GetExpiration();
             var registrationToken = new RegistrationCompletionToken(
                 Guid.NewGuid(),
@@ -65,14 +77,19 @@ public class CreateUserHandler(
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            return completionToken;
         }
         catch (Exception ex)
         {
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
-            logger.LogError(ex, "Failed to create user with email: {Email}", emailLower);
+            logger.LogError(ex, "Failed to create user with email: {Email}", user.Email);
             throw;
         }
+    }
 
+    private async Task SendCompletionEmailAsync(User user, string completionToken, CancellationToken cancellationToken)
+    {
         var frontendUrl = configuration["Frontend:BaseUrl"]
             ?? throw new InvalidOperationException("Frontend:BaseUrl configuration is required");
         var completionLink = $"{frontendUrl}/complete-registration?token={completionToken}";
@@ -97,8 +114,6 @@ public class CreateUserHandler(
         {
             logger.LogError(ex, "Failed to send registration completion email to {Email}", user.Email);
         }
-
-        return Result.Success(user.Id);
     }
 
     private static string GenerateTemporaryPassword()

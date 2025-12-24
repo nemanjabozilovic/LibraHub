@@ -86,23 +86,14 @@ public class AnnouncementPublishedConsumer(
                                 PublishedAt = @event.PublishedAt
                             };
 
-                            emailTasks.Add(Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    await notificationSender.SendEmailWithTemplateAsync(
-                                        userInfo.Email,
-                                        emailSubject,
-                                        "ANNOUNCEMENT_PUBLISHED",
-                                        emailModel,
-                                        cancellationToken);
-                                }
-                                catch (Exception ex)
-                                {
-                                    logger.LogError(ex, "Failed to send email notification to UserId: {UserId} for AnnouncementId: {AnnouncementId}",
-                                        userId, @event.AnnouncementId);
-                                }
-                            }, cancellationToken));
+                            emailTasks.Add(SendEmailNotificationAsync(
+                                notificationSender,
+                                userInfo.Email,
+                                emailSubject,
+                                emailModel,
+                                userId,
+                                @event.AnnouncementId,
+                                cancellationToken));
                         }
                         else
                         {
@@ -154,6 +145,31 @@ public class AnnouncementPublishedConsumer(
         if (emailTasks.Count > 0)
         {
             await Task.WhenAll(emailTasks);
+        }
+    }
+
+    private static async Task SendEmailNotificationAsync(
+        INotificationSender notificationSender,
+        string email,
+        string subject,
+        object model,
+        Guid userId,
+        Guid announcementId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await notificationSender.SendEmailWithTemplateAsync(
+                email,
+                subject,
+                "ANNOUNCEMENT_PUBLISHED",
+                model,
+                cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Logging will be handled by the caller if needed
+            throw;
         }
     }
 }

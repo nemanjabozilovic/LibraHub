@@ -1,5 +1,6 @@
 using LibraHub.Notifications.Application.Abstractions;
 using LibraHub.Notifications.Infrastructure.Options;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 
@@ -9,12 +10,18 @@ public class IdentityClient : IIdentityClient
 {
     private readonly HttpClient _httpClient;
     private readonly NotificationsOptions _options;
+    private readonly IMemoryCache _cache;
     private readonly JsonSerializerOptions _jsonOptions;
+    private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(5);
 
-    public IdentityClient(HttpClient httpClient, IOptions<NotificationsOptions> options)
+    public IdentityClient(
+        HttpClient httpClient,
+        IOptions<NotificationsOptions> options,
+        IMemoryCache cache)
     {
         _httpClient = httpClient;
         _options = options.Value;
+        _cache = cache;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
@@ -25,6 +32,13 @@ public class IdentityClient : IIdentityClient
         Guid userId,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"user_info_{userId}";
+
+        if (_cache.TryGetValue<UserInfo>(cacheKey, out var cachedInfo))
+        {
+            return cachedInfo;
+        }
+
         try
         {
             var response = await _httpClient.GetAsync(
@@ -40,6 +54,11 @@ public class IdentityClient : IIdentityClient
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             var userInfo = JsonSerializer.Deserialize<UserInfo>(content, _jsonOptions);
+
+            if (userInfo != null)
+            {
+                _cache.Set(cacheKey, userInfo, CacheExpiration);
+            }
 
             return userInfo;
         }

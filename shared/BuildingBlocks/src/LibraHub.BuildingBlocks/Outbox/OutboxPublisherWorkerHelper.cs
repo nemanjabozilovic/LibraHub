@@ -32,13 +32,27 @@ public class OutboxPublisherWorkerHelper<TDbContext> : OutboxPublisherWorker whe
 
     protected override async Task MarkAsProcessedAsync(Guid messageId, CancellationToken cancellationToken)
     {
+        await MarkAsProcessedBatchAsync([messageId], cancellationToken);
+    }
+
+    protected override async Task MarkAsProcessedBatchAsync(IEnumerable<Guid> messageIds, CancellationToken cancellationToken)
+    {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<TDbContext>();
 
-        var message = await context.Set<OutboxMessage>().FindAsync([messageId], cancellationToken);
-        if (message != null)
+        var idsList = messageIds.ToList();
+        var messages = await context.Set<OutboxMessage>()
+            .Where(om => idsList.Contains(om.Id))
+            .ToListAsync(cancellationToken);
+
+        var now = DateTime.UtcNow;
+        foreach (var message in messages)
         {
-            message.ProcessedAt = DateTime.UtcNow;
+            message.ProcessedAt = now;
+        }
+
+        if (messages.Count > 0)
+        {
             await context.SaveChangesAsync(cancellationToken);
         }
     }

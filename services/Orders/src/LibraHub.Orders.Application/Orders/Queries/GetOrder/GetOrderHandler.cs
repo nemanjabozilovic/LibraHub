@@ -14,12 +14,13 @@ public class GetOrderHandler(
 {
     public async Task<Result<OrderDto>> Handle(GetOrderQuery request, CancellationToken cancellationToken)
     {
-        if (!currentUser.UserId.HasValue)
+        var userIdResult = currentUser.RequireUserId(OrdersErrors.User.NotAuthenticated);
+        if (userIdResult.IsFailure)
         {
-            return Result.Failure<OrderDto>(Error.Unauthorized(OrdersErrors.User.NotAuthenticated));
+            return Result.Failure<OrderDto>(userIdResult.Error!);
         }
 
-        var userId = currentUser.UserId.Value;
+        var userId = userIdResult.Value;
 
         var order = await orderRepository.GetByIdAndUserIdAsync(request.OrderId, userId, cancellationToken);
         if (order == null)

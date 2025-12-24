@@ -33,7 +33,6 @@ public class ValidateReadTokenHandler(
             return Result.Failure<AccessGrantInfo>(Error.Validation(ContentErrors.Access.TokenExpired));
         }
 
-        // Get the stored object
         StoredObject? storedObject = null;
 
         if (grant.Scope == AccessScope.Cover)

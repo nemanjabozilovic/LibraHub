@@ -7,9 +7,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "services", "services", "{B2C3D4E5-F6A7-4B5C-9D0E-1F2A3B4C5D6E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "infra", "infra", "{CCA0B699-1BED-4332-B333-B9AF43D98FB8}"
-	ProjectSection(SolutionItems) = preProject
-		infra\docker\docker-compose.yml = infra\docker\docker-compose.yml
-	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.BuildingBlocks", "shared\BuildingBlocks\src\LibraHub.BuildingBlocks\LibraHub.BuildingBlocks.csproj", "{D4E5F6A7-B8C9-4D5E-9F0A-1B2C3D4E5F6A}"
 EndProject
@@ -74,6 +71,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.Notifications.Infrastructure", "services\Notifications\src\LibraHub.Notifications.Infrastructure\LibraHub.Notifications.Infrastructure.csproj", "{9CB08559-1563-4701-A849-73718E43E75D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Notifications", "Notifications", "{49F3428A-FD58-416A-B7E4-DFD1934026C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibraHub.Gateway.Api", "services\Gateway\src\LibraHub.Gateway.Api\LibraHub.Gateway.Api.csproj", "{7A8B9C0D-1E2F-4A5B-9C0D-1E2F3A4B5C6D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Gateway", "Gateway", "{8B9C0D1E-2F3A-4B5C-9D0E-1F2A3B4C5D6E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -185,6 +186,10 @@ Global
 		{9CB08559-1563-4701-A849-73718E43E75D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9CB08559-1563-4701-A849-73718E43E75D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9CB08559-1563-4701-A849-73718E43E75D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A8B9C0D-1E2F-4A5B-9C0D-1E2F3A4B5C6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A8B9C0D-1E2F-4A5B-9C0D-1E2F3A4B5C6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A8B9C0D-1E2F-4A5B-9C0D-1E2F3A4B5C6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A8B9C0D-1E2F-4A5B-9C0D-1E2F3A4B5C6D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -222,6 +227,8 @@ Global
 		{D9DA836A-4B8F-4625-BF1E-639B394F776D} = {49F3428A-FD58-416A-B7E4-DFD1934026C3}
 		{9CB08559-1563-4701-A849-73718E43E75D} = {49F3428A-FD58-416A-B7E4-DFD1934026C3}
 		{49F3428A-FD58-416A-B7E4-DFD1934026C3} = {B2C3D4E5-F6A7-4B5C-9D0E-1F2A3B4C5D6E}
+		{7A8B9C0D-1E2F-4A5B-9C0D-1E2F3A4B5C6D} = {8B9C0D1E-2F3A-4B5C-9D0E-1F2A3B4C5D6E}
+		{8B9C0D1E-2F3A-4B5C-9D0E-1F2A3B4C5D6E} = {B2C3D4E5-F6A7-4B5C-9D0E-1F2A3B4C5D6E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3F9716D5-3141-4AD7-BF6B-B408615464E3}

@@ -17,7 +17,6 @@ public class ResetPasswordHandler(
 {
     public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
-        // Validate token exists
         var token = await tokenRepository.GetByTokenAsync(request.Token, cancellationToken);
         if (token == null)
         {
@@ -25,7 +24,6 @@ public class ResetPasswordHandler(
             return Result.Failure(Error.NotFound("Invalid or expired reset token"));
         }
 
-        // Validate token is still valid (not expired and not used)
         if (!token.IsValid)
         {
             logger.LogWarning("Password reset attempted with expired or used token. Token ID: {TokenId}, IsExpired: {IsExpired}, IsUsed: {IsUsed}",
@@ -33,7 +31,6 @@ public class ResetPasswordHandler(
             return Result.Failure(Error.Validation("Reset token has expired or has already been used"));
         }
 
-        // Get user
         var user = await userRepository.GetByIdAsync(token.UserId, cancellationToken);
         if (user == null)
         {
@@ -42,7 +39,6 @@ public class ResetPasswordHandler(
             return Result.Failure(Error.NotFound("User not found"));
         }
 
-        // Check if user is active
         if (user.Status != UserStatus.Active)
         {
             logger.LogWarning("Password reset attempted for inactive user. UserId: {UserId}, Status: {Status}",

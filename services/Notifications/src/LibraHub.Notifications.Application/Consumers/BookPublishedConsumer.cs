@@ -86,23 +86,14 @@ public class BookPublishedConsumer(
                                 PublishedAt = @event.PublishedAt
                             };
 
-                            emailTasks.Add(Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    await notificationSender.SendEmailWithTemplateAsync(
-                                        userInfo.Email,
-                                        emailSubject,
-                                        "BOOK_PUBLISHED",
-                                        emailModel,
-                                        cancellationToken);
-                                }
-                                catch (Exception ex)
-                                {
-                                    logger.LogError(ex, "Failed to send email notification to UserId: {UserId} for BookId: {BookId}",
-                                        userId, @event.BookId);
-                                }
-                            }, cancellationToken));
+                            emailTasks.Add(SendEmailNotificationAsync(
+                                notificationSender,
+                                userInfo.Email,
+                                emailSubject,
+                                emailModel,
+                                userId,
+                                @event.BookId,
+                                cancellationToken));
                         }
                         else
                         {
@@ -154,6 +145,31 @@ public class BookPublishedConsumer(
         if (emailTasks.Count > 0)
         {
             await Task.WhenAll(emailTasks);
+        }
+    }
+
+    private static async Task SendEmailNotificationAsync(
+        INotificationSender notificationSender,
+        string email,
+        string subject,
+        object model,
+        Guid userId,
+        Guid bookId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await notificationSender.SendEmailWithTemplateAsync(
+                email,
+                subject,
+                "BOOK_PUBLISHED",
+                model,
+                cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Logging will be handled by the caller if needed
+            throw;
         }
     }
 }

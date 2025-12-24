@@ -24,10 +24,7 @@ public class CompleteRegistrationHandler(
             return Result.Failure(Error.NotFound("User not found"));
         }
 
-        // Update user profile
         user.UpdateProfile(request.FirstName, request.LastName, request.Phone, request.DateOfBirth);
-
-        // Mark token as used
         token.MarkAsUsed();
 
         await userRepository.UpdateAsync(user, cancellationToken);

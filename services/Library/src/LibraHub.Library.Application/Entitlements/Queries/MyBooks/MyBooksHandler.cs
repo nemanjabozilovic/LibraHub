@@ -3,7 +3,6 @@ using LibraHub.BuildingBlocks.Results;
 using LibraHub.Library.Application.Abstractions;
 using LibraHub.Library.Domain.Errors;
 using MediatR;
-using Error = LibraHub.BuildingBlocks.Results.Error;
 
 namespace LibraHub.Library.Application.Entitlements.Queries.MyBooks;
 
@@ -14,38 +13,41 @@ public class MyBooksHandler(
 {
     public async Task<Result<MyBooksDto>> Handle(MyBooksQuery request, CancellationToken cancellationToken)
     {
-        if (!currentUser.UserId.HasValue)
+        var userIdResult = currentUser.RequireUserId(LibraryErrors.User.NotAuthenticated);
+        if (userIdResult.IsFailure)
         {
-            return Result.Failure<MyBooksDto>(Error.Unauthorized(LibraryErrors.User.NotAuthenticated));
+            return Result.Failure<MyBooksDto>(userIdResult.Error!);
         }
 
-        var userId = currentUser.UserId.Value;
+        var userId = userIdResult.Value;
 
-        var entitlements = await entitlementRepository.GetActiveByUserIdAsync(userId, cancellationToken);
-        var totalCount = entitlements.Count;
+        var totalCount = await entitlementRepository.CountActiveByUserIdAsync(userId, cancellationToken);
 
-        // Apply paging
-        var pagedEntitlements = entitlements
-            .OrderByDescending(e => e.AcquiredAt)
-            .Skip(request.Skip)
-            .Take(request.Take)
-            .ToList();
+        var pagedEntitlements = await entitlementRepository.GetActiveByUserIdPagedAsync(
+            userId,
+            request.Skip,
+            request.Take,
+            cancellationToken);
 
-        var books = new List<BookDto>();
+        var bookIds = pagedEntitlements.Select(e => e.BookId).ToList();
+        var snapshotTasks = bookIds.Select(bookId => bookSnapshotStore.GetByIdAsync(bookId, cancellationToken));
+        var snapshots = await Task.WhenAll(snapshotTasks);
+        var snapshotDict = snapshots
+            .Where(s => s != null)
+            .ToDictionary(s => s!.BookId, s => s!);
 
-        foreach (var entitlement in pagedEntitlements)
+        var books = pagedEntitlements.Select(entitlement =>
         {
-            var snapshot = await bookSnapshotStore.GetByIdAsync(entitlement.BookId, cancellationToken);
-
-            books.Add(new BookDto
+            var snapshot = snapshotDict.GetValueOrDefault(entitlement.BookId);
+            return new BookDto
             {
                 BookId = entitlement.BookId,
                 Title = snapshot?.Title ?? "Unknown Book",
                 Authors = snapshot?.Authors ?? "Unknown Author",
                 CoverRef = snapshot?.CoverRef,
                 AcquiredAt = entitlement.AcquiredAt
-            });
-        }
+            };
+        }).ToList();
 
         return Result.Success(new MyBooksDto
         {

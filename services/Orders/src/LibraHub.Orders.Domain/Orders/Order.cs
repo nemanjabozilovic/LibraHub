@@ -48,7 +48,6 @@ public class Order
         Currency = total.Currency;
         CreatedAt = DateTime.UtcNow;
 
-        // Set order ID on all items
         foreach (var item in _items)
         {
             item.SetOrderId(id);

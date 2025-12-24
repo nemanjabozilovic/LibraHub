@@ -34,7 +34,6 @@ public static class JwtAuthenticationExtensions
                         Encoding.UTF8.GetBytes(jwtSecretKey))
                 };
 
-                // Configure JWT for SignalR
                 options.Events = new JwtBearerEvents
                 {
                     OnMessageReceived = context =>
@@ -42,7 +41,6 @@ public static class JwtAuthenticationExtensions
                         var accessToken = context.Request.Query["access_token"];
                         var path = context.HttpContext.Request.Path;
 
-                        // If the request is for SignalR hub, extract token from query string
                         if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                         {
                             context.Token = accessToken;

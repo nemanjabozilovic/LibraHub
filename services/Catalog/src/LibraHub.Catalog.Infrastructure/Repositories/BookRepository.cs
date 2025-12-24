@@ -48,11 +48,11 @@ public class BookRepository : IBookRepository
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = searchTerm.ToLowerInvariant();
+            var term = $"%{searchTerm.ToLowerInvariant()}%";
             query = query.Where(b =>
-                b.Title.ToLower().Contains(term) ||
-                (b.Description != null && b.Description.ToLower().Contains(term)) ||
-                b.Authors.Any(a => a.Name.ToLower().Contains(term)));
+                EF.Functions.ILike(b.Title, term) ||
+                (b.Description != null && EF.Functions.ILike(b.Description, term)) ||
+                b.Authors.Any(a => EF.Functions.ILike(a.Name, term)));
         }
 
         // Only show published books for public search

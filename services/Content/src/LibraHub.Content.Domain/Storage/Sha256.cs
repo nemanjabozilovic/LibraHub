@@ -19,7 +19,6 @@ public class Sha256
             throw new ArgumentException("SHA-256 hash must be 64 characters (hex)", nameof(value));
         }
 
-        // Validate hex format
         if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[0-9a-fA-F]{64}$"))
         {
             throw new ArgumentException("SHA-256 hash must be valid hexadecimal", nameof(value));

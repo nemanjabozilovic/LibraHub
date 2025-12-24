@@ -24,13 +24,17 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'OrdersDb' not found.");
 
         services.AddDbContext<OrdersDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+                }));
 
         return services;
     }
 
     public static IServiceCollection AddOrdersApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddMemoryCache();
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssembly).Assembly));
         services.AddValidatorsFromAssembly(typeof(ApplicationAssembly).Assembly);
 
@@ -45,10 +49,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore<OrdersDbContext, IdempotencyKey>>();
 
-        services.Configure<Infrastructure.Options.MockPaymentOptions>(configuration.GetSection(Infrastructure.Options.MockPaymentOptions.SectionName));
+        services.AddOptions<MockPaymentOptions>().Bind(configuration.GetSection(MockPaymentOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<OrdersOptions>().Bind(configuration.GetSection(OrdersOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
 
-        services.Configure<OrdersOptions>(configuration.GetSection(OrdersOptions.SectionName));
         services.AddHttpClient<ICatalogPricingClient, CatalogPricingClient>();
         services.AddHttpClient<ILibraryOwnershipClient, LibraryOwnershipClient>();
         services.AddHttpClient<IIdentityClient, IdentityClient>();

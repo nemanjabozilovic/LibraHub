@@ -51,7 +51,6 @@ public class NotificationRepository : INotificationRepository
     public async Task AddRangeAsync(IEnumerable<Notification> notifications, CancellationToken cancellationToken = default)
     {
         await _context.Notifications.AddRangeAsync(notifications, cancellationToken);
-        // Don't save here - let the transaction handle it
     }
 
     public async Task UpdateAsync(Notification notification, CancellationToken cancellationToken = default)

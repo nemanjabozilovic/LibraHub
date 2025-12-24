@@ -15,7 +15,6 @@ public class AdminGrantEntitlementHandler(
 {
     public async Task<Result<Guid>> Handle(AdminGrantEntitlementCommand request, CancellationToken cancellationToken)
     {
-        // Check if entitlement already exists
         var existing = await entitlementRepository.GetByUserAndBookAsync(
             request.UserId,
             request.BookId,
@@ -28,11 +27,9 @@ public class AdminGrantEntitlementHandler(
                 return Result.Failure<Guid>(Error.Validation(LibraryErrors.Entitlement.AlreadyExists));
             }
 
-            // Reactivate revoked entitlement
             existing.Reactivate();
             await entitlementRepository.UpdateAsync(existing, cancellationToken);
 
-            // Publish event
             await outboxWriter.WriteAsync(
                 new EntitlementGrantedV1
                 {
@@ -47,7 +44,6 @@ public class AdminGrantEntitlementHandler(
             return Result.Success(existing.Id);
         }
 
-        // Create new entitlement
         var entitlement = new Entitlement(
             Guid.NewGuid(),
             request.UserId,
@@ -55,8 +51,6 @@ public class AdminGrantEntitlementHandler(
             EntitlementSource.AdminGrant);
 
         await entitlementRepository.AddAsync(entitlement, cancellationToken);
-
-        // Publish event
         await outboxWriter.WriteAsync(
             new EntitlementGrantedV1
             {

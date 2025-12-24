@@ -11,6 +11,7 @@ public abstract class OutboxPublisherWorker : BackgroundService
     private readonly IConnection _connection;
     private readonly IModel _channel;
     private readonly string _exchangeName;
+    private readonly SemaphoreSlim _processingSemaphore;
 
     protected OutboxPublisherWorker(
         ILogger<OutboxPublisherWorker> logger,
@@ -22,11 +23,14 @@ public abstract class OutboxPublisherWorker : BackgroundService
         _exchangeName = exchangeName;
         _channel = _connection.CreateModel();
         _channel.ExchangeDeclare(exchangeName, ExchangeType.Topic, durable: true);
+        _processingSemaphore = new SemaphoreSlim(1, 1);
     }
 
     protected abstract Task<List<OutboxMessage>> GetPendingMessagesAsync(int batchSize, CancellationToken cancellationToken);
 
     protected abstract Task MarkAsProcessedAsync(Guid messageId, CancellationToken cancellationToken);
+
+    protected abstract Task MarkAsProcessedBatchAsync(IEnumerable<Guid> messageIds, CancellationToken cancellationToken);
 
     protected abstract Task MarkAsFailedAsync(Guid messageId, string error, CancellationToken cancellationToken);
 
@@ -36,7 +40,22 @@ public abstract class OutboxPublisherWorker : BackgroundService
         {
             try
             {
-                await ProcessOutboxMessagesAsync(cancellationToken);
+                if (await _processingSemaphore.WaitAsync(0, cancellationToken))
+                {
+                    try
+                    {
+                        await ProcessOutboxMessagesAsync(cancellationToken);
+                    }
+                    finally
+                    {
+                        _processingSemaphore.Release();
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Previous outbox processing is still running, skipping this iteration");
+                }
+
                 await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             }
             catch (Exception ex)
@@ -51,6 +70,9 @@ public abstract class OutboxPublisherWorker : BackgroundService
     {
         const int batchSize = 50;
         var messages = await GetPendingMessagesAsync(batchSize, cancellationToken);
+
+        var processedIds = new List<Guid>();
+        var failedIds = new List<(Guid Id, string Error)>();
 
         foreach (var message in messages)
         {
@@ -71,19 +93,30 @@ public abstract class OutboxPublisherWorker : BackgroundService
                     basicProperties: properties,
                     body: body);
 
-                await MarkAsProcessedAsync(message.Id, cancellationToken);
+                processedIds.Add(message.Id);
                 _logger.LogInformation("Published outbox message {MessageId} of type {EventType}", message.Id, message.EventType);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error publishing outbox message {MessageId}", message.Id);
-                await MarkAsFailedAsync(message.Id, ex.Message, cancellationToken);
+                failedIds.Add((message.Id, ex.Message));
             }
+        }
+
+        if (processedIds.Count > 0)
+        {
+            await MarkAsProcessedBatchAsync(processedIds, cancellationToken);
+        }
+
+        foreach (var (id, error) in failedIds)
+        {
+            await MarkAsFailedAsync(id, error, cancellationToken);
         }
     }
 
     public override void Dispose()
     {
+        _processingSemaphore?.Dispose();
         _channel?.Dispose();
         _connection?.Dispose();
         base.Dispose();

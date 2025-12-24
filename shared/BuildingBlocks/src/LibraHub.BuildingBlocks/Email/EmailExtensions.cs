@@ -12,24 +12,22 @@ public static class EmailExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var emailConfig = configuration.GetSection("EmailConfig");
-        var host = emailConfig["Host"] ?? "127.0.0.1";
-        var port = int.Parse(emailConfig["Port"] ?? "25");
-        var from = emailConfig["From"] ?? "noreply@librahub.local";
-        var username = emailConfig["Username"];
-        var password = emailConfig["Password"];
-        var enableSsl = bool.TryParse(emailConfig["EnableSsl"], out var ssl) && ssl;
+        services.AddOptions<EmailConfigOptions>()
+            .Bind(configuration.GetSection(EmailConfigOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
-        var smtpClient = new SmtpClient(host)
+        var emailConfig = configuration.GetSection(EmailConfigOptions.SectionName).Get<EmailConfigOptions>();
+        var smtpClient = new SmtpClient(emailConfig.Host)
         {
-            Port = port,
+            Port = emailConfig.Port,
             DeliveryMethod = SmtpDeliveryMethod.Network,
-            EnableSsl = enableSsl
+            EnableSsl = emailConfig.EnableSsl
         };
 
-        if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+        if (!string.IsNullOrWhiteSpace(emailConfig.Username) && !string.IsNullOrWhiteSpace(emailConfig.Password))
         {
-            smtpClient.Credentials = new NetworkCredential(username, password);
+            smtpClient.Credentials = new NetworkCredential(emailConfig.Username, emailConfig.Password);
             smtpClient.UseDefaultCredentials = false;
         }
         else
@@ -38,7 +36,7 @@ public static class EmailExtensions
         }
 
         services
-            .AddFluentEmail(from)
+            .AddFluentEmail(emailConfig.From)
             .AddRazorRenderer()
             .AddSmtpSender(smtpClient);
 

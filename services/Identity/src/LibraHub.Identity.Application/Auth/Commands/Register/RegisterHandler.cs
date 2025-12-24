@@ -41,6 +41,8 @@ public class RegisterHandler(
             request.Phone,
             request.DateOfBirth);
 
+        user.AddRole(Role.User);
+
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
@@ -80,7 +82,7 @@ public class RegisterHandler(
         var emailModel = new
         {
             FullName = !string.IsNullOrWhiteSpace(user.DisplayName) ? user.DisplayName : user.Email,
-            TempPassword = request.Password
+            Password = request.Password
         };
 
         try

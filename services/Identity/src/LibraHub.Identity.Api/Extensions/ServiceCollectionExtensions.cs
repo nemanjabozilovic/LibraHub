@@ -24,7 +24,10 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'IdentityDb' not found.");
 
         services.AddDbContext<IdentityDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+                }));
 
         return services;
     }
@@ -65,12 +68,10 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddIdentityJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
-        var jwtOptions = configuration.GetSection("Jwt").Get<JwtOptions>()
-            ?? throw new InvalidOperationException("JWT options not configured");
-
-        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
-        services.Configure<SecurityOptions>(configuration.GetSection("Security"));
-        services.Configure<TokenOptions>(configuration.GetSection(TokenOptions.SectionName));
+        services.AddOptions<JwtOptions>().Bind(configuration.GetSection("Jwt")).ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<SecurityOptions>().Bind(configuration.GetSection("Security")).ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<TokenOptions>().Bind(configuration.GetSection(TokenOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<FrontendOptions>().Bind(configuration.GetSection(FrontendOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
 
         services.AddLibraHubJwtAuthentication(configuration);
 

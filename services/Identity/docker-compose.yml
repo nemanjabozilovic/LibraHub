@@ -11,6 +11,32 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__IdentityDb=Host=postgres;Port=5432;Database=librahub_identity;Username=librahub_admin;Password=L1br@Hub_DB_2026!S3cur3_P@ss
       - ConnectionStrings__RabbitMQ=amqp://librahub_mq:R%40bb1tMQ_L1br%40Hub_2026%21S3cur3_P%40ss@rabbitmq:5672/
+      - Jwt__SecretKey=1CaAKnS5a3ukmWmB9mRVbh/9/S2FSam6JTMkuEXjVDnUY+AisXUNcwkPtifcGw0cX8W7ybaYQ84YIm6KJDlstA==
+      - Jwt__Issuer=LibraHub.Identity
+      - Jwt__Audience=LibraHub
+      - Jwt__AccessTokenExpirationMinutes=15
+      - Jwt__RefreshTokenExpirationDays=7
+      - Security__MaxFailedLoginAttempts=5
+      - Security__LockoutDurationMinutes=15
+      - Tokens__PasswordResetExpirationHours=24
+      - Tokens__RegistrationCompletionExpirationHours=72
+      - Tokens__EmailVerificationExpirationDays=7
+      - EmailConfig__Host=127.0.0.1
+      - EmailConfig__Port=25
+      - EmailConfig__From=identity@librahub.local
+      - EmailConfig__Username=
+      - EmailConfig__Password=
+      - EmailConfig__EnableSsl=false
+      - EmailTemplates__REGISTER=register.html
+      - EmailTemplates__FORGOT_PASSWORD=forgot-password.html
+      - EmailTemplates__COMPLETE_REGISTRATION=complete-registration.html
+      - Frontend__BaseUrl=http://localhost:3000
+      - Storage__Endpoint=minio:9000
+      - Storage__AccessKey=minioadmin
+      - Storage__SecretKey=minioadmin
+      - Storage__UseSsl=false
+      - Storage__AvatarsBucketName=avatars
+      - Storage__ApiBaseUrl=http://identity-api:8081
     ports:
       - "60950:8080"
       - "60951:8081"

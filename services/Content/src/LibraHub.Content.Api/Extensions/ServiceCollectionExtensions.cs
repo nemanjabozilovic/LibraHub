@@ -26,13 +26,18 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'ContentDb' not found.");
 
         services.AddDbContext<ContentDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+                })
+                   .UseLazyLoadingProxies());
 
         return services;
     }
 
     public static IServiceCollection AddContentApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddMemoryCache();
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssembly).Assembly));
         services.AddValidatorsFromAssembly(typeof(ApplicationAssembly).Assembly);
 
@@ -42,11 +47,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccessGrantRepository, AccessGrantRepository>();
 
         services.AddScoped<IOutboxWriter, OutboxEventPublisher<ContentDbContext>>();
+        services.AddScoped<IUnitOfWork, BuildingBlocks.Persistence.UnitOfWork<ContentDbContext>>();
         services.AddScoped<IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
 
-        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
+        services.AddOptions<StorageOptions>().Bind(configuration.GetSection(StorageOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+
         services.AddSingleton<MinioClient>(sp =>
         {
             var options = sp.GetRequiredService<IOptions<StorageOptions>>().Value;
@@ -61,10 +68,12 @@ public static class ServiceCollectionExtensions
 
             return client.Build();
         });
+
         services.AddScoped<IObjectStorage, MinioObjectStorage>();
 
-        services.Configure<UploadOptions>(configuration.GetSection(UploadOptions.SectionName));
-        services.Configure<ReadAccessOptions>(configuration.GetSection(ReadAccessOptions.SectionName));
+        services.AddOptions<UploadOptions>().Bind(configuration.GetSection(UploadOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<ReadAccessOptions>().Bind(configuration.GetSection(ReadAccessOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+
         services.AddHttpClient<ICatalogReadClient, CatalogReadClient>();
         services.AddHttpClient<ILibraryAccessClient, LibraryAccessClient>();
 

@@ -5,6 +5,8 @@ using LibraHub.Orders.Domain.Errors;
 using LibraHub.Orders.Domain.Orders;
 using MediatR;
 using Error = LibraHub.BuildingBlocks.Results.Error;
+using PricingQuote = LibraHub.Orders.Application.Abstractions.PricingQuote;
+using PricingQuoteItem = LibraHub.Orders.Application.Abstractions.PricingQuoteItem;
 
 namespace LibraHub.Orders.Application.Orders.Commands.CreateOrder;
 
@@ -20,14 +22,46 @@ public class CreateOrderHandler(
 {
     public async Task<Result<Guid>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
-        if (!currentUser.UserId.HasValue)
+        var userIdResult = currentUser.RequireUserId(OrdersErrors.User.NotAuthenticated);
+        if (userIdResult.IsFailure)
         {
-            return Result.Failure<Guid>(Error.Unauthorized(OrdersErrors.User.NotAuthenticated));
+            return userIdResult;
         }
 
-        var userId = currentUser.UserId.Value;
+        var userId = userIdResult.Value;
 
-        // Validate user
+        var userValidationResult = await ValidateUserAsync(identityClient, userId, cancellationToken);
+        if (userValidationResult.IsFailure)
+        {
+            return userValidationResult;
+        }
+
+        var pricingQuote = await catalogClient.GetPricingQuoteAsync(request.BookIds, userId, cancellationToken);
+        var pricingValidationResult = ValidatePricingQuote(pricingQuote, request.BookIds.Count);
+        if (pricingValidationResult.IsFailure)
+        {
+            return pricingValidationResult;
+        }
+
+        var bookValidationResult = ValidateBooks(pricingQuote!);
+        if (bookValidationResult.IsFailure)
+        {
+            return bookValidationResult;
+        }
+
+        var ownershipValidationResult = await ValidateBookOwnershipAsync(libraryClient, userId, request.BookIds, cancellationToken);
+        if (ownershipValidationResult.IsFailure)
+        {
+            return ownershipValidationResult;
+        }
+
+        var order = CreateOrderFromQuote(userId, pricingQuote!);
+
+        return await SaveOrderWithTransactionAsync(order, cancellationToken);
+    }
+
+    private async Task<Result<Guid>> ValidateUserAsync(IIdentityClient identityClient, Guid userId, CancellationToken cancellationToken)
+    {
         var userInfo = await identityClient.GetUserInfoAsync(userId, cancellationToken);
         if (userInfo == null)
         {
@@ -44,14 +78,21 @@ public class CreateOrderHandler(
             return Result.Failure<Guid>(Error.Validation(OrdersErrors.User.EmailNotVerified));
         }
 
-        // Get pricing quote from Catalog
-        var pricingQuote = await catalogClient.GetPricingQuoteAsync(request.BookIds, userId, cancellationToken);
-        if (pricingQuote == null || pricingQuote.Items.Count != request.BookIds.Count)
+        return Result.Success(Guid.Empty);
+    }
+
+    private Result<Guid> ValidatePricingQuote(PricingQuote? pricingQuote, int expectedCount)
+    {
+        if (pricingQuote == null || pricingQuote.Items.Count != expectedCount)
         {
             return Result.Failure<Guid>(Error.NotFound("Could not retrieve pricing information for all books"));
         }
 
-        // Validate books
+        return Result.Success(Guid.Empty);
+    }
+
+    private Result<Guid> ValidateBooks(PricingQuote pricingQuote)
+    {
         foreach (var item in pricingQuote.Items)
         {
             if (!item.IsPublished)
@@ -70,14 +111,22 @@ public class CreateOrderHandler(
             }
         }
 
-        // Check if user already owns any of the books
-        var ownedBookIds = await libraryClient.GetOwnedBookIdsAsync(userId, request.BookIds, cancellationToken);
+        return Result.Success(Guid.Empty);
+    }
+
+    private async Task<Result<Guid>> ValidateBookOwnershipAsync(ILibraryOwnershipClient libraryClient, Guid userId, List<Guid> bookIds, CancellationToken cancellationToken)
+    {
+        var ownedBookIds = await libraryClient.GetOwnedBookIdsAsync(userId, bookIds, cancellationToken);
         if (ownedBookIds.Count > 0)
         {
             return Result.Failure<Guid>(Error.Validation(OrdersErrors.Book.AlreadyOwned));
         }
 
-        // Create order items
+        return Result.Success(Guid.Empty);
+    }
+
+    private Order CreateOrderFromQuote(Guid userId, PricingQuote pricingQuote)
+    {
         var orderId = Guid.NewGuid();
         var orderItems = new List<OrderItem>();
         var currency = pricingQuote.Currency;
@@ -86,36 +135,37 @@ public class CreateOrderHandler(
 
         foreach (var quoteItem in pricingQuote.Items)
         {
-            var basePrice = new Money(quoteItem.BasePrice, currency);
-            var finalPrice = new Money(quoteItem.FinalPrice, currency);
-            var vatAmount = new Money(quoteItem.FinalPrice * (quoteItem.VatRate / 100m), currency);
-
-            var orderItem = new OrderItem(
-                Guid.NewGuid(),
-                orderId,
-                quoteItem.BookId,
-                quoteItem.BookTitle,
-                basePrice,
-                finalPrice,
-                quoteItem.VatRate,
-                vatAmount,
-                quoteItem.PromotionId,
-                quoteItem.PromotionName,
-                quoteItem.DiscountAmount);
-
+            var orderItem = CreateOrderItem(orderId, quoteItem, currency);
             orderItems.Add(orderItem);
-            subtotal = subtotal.Add(finalPrice);
-            vatTotal = vatTotal.Add(vatAmount);
+            subtotal = subtotal.Add(orderItem.FinalPrice);
+            vatTotal = vatTotal.Add(orderItem.VatAmount);
         }
 
-        var order = new Order(
-            orderId,
-            userId,
-            orderItems,
-            subtotal,
-            vatTotal,
-            subtotal.Add(vatTotal));
+        return new Order(orderId, userId, orderItems, subtotal, vatTotal, subtotal.Add(vatTotal));
+    }
 
+    private OrderItem CreateOrderItem(Guid orderId, PricingQuoteItem quoteItem, string currency)
+    {
+        var basePrice = new Money(quoteItem.BasePrice, currency);
+        var finalPrice = new Money(quoteItem.FinalPrice, currency);
+        var vatAmount = new Money(quoteItem.FinalPrice * (quoteItem.VatRate / 100m), currency);
+
+        return new OrderItem(
+            Guid.NewGuid(),
+            orderId,
+            quoteItem.BookId,
+            quoteItem.BookTitle,
+            basePrice,
+            finalPrice,
+            quoteItem.VatRate,
+            vatAmount,
+            quoteItem.PromotionId,
+            quoteItem.PromotionName,
+            quoteItem.DiscountAmount);
+    }
+
+    private async Task<Result<Guid>> SaveOrderWithTransactionAsync(Order order, CancellationToken cancellationToken)
+    {
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
@@ -123,28 +173,7 @@ public class CreateOrderHandler(
             await orderRepository.AddAsync(order, cancellationToken);
 
             await outboxWriter.WriteAsync(
-                new Contracts.Orders.V1.OrderCreatedV1
-                {
-                    OrderId = order.Id,
-                    UserId = order.UserId,
-                    Items = order.Items.Select(i => new Contracts.Orders.V1.OrderItemDto
-                    {
-                        BookId = i.BookId,
-                        BookTitle = i.BookTitle,
-                        BasePrice = i.BasePrice.Amount,
-                        FinalPrice = i.FinalPrice.Amount,
-                        VatRate = i.VatRate,
-                        VatAmount = i.VatAmount.Amount,
-                        PromotionId = i.PromotionId,
-                        PromotionName = i.PromotionName,
-                        DiscountAmount = i.DiscountAmount
-                    }).ToList(),
-                    Subtotal = order.Subtotal.Amount,
-                    VatTotal = order.VatTotal.Amount,
-                    Total = order.Total.Amount,
-                    Currency = order.Currency,
-                    CreatedAt = clock.UtcNow
-                },
+                CreateOrderCreatedEvent(order),
                 Contracts.Common.EventTypes.OrderCreated,
                 cancellationToken);
 
@@ -158,6 +187,32 @@ public class CreateOrderHandler(
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
+    }
+
+    private Contracts.Orders.V1.OrderCreatedV1 CreateOrderCreatedEvent(Order order)
+    {
+        return new Contracts.Orders.V1.OrderCreatedV1
+        {
+            OrderId = order.Id,
+            UserId = order.UserId,
+            Items = order.Items.Select(i => new Contracts.Orders.V1.OrderItemDto
+            {
+                BookId = i.BookId,
+                BookTitle = i.BookTitle,
+                BasePrice = i.BasePrice.Amount,
+                FinalPrice = i.FinalPrice.Amount,
+                VatRate = i.VatRate,
+                VatAmount = i.VatAmount.Amount,
+                PromotionId = i.PromotionId,
+                PromotionName = i.PromotionName,
+                DiscountAmount = i.DiscountAmount
+            }).ToList(),
+            Subtotal = order.Subtotal.Amount,
+            VatTotal = order.VatTotal.Amount,
+            Total = order.Total.Amount,
+            Currency = order.Currency,
+            CreatedAt = clock.UtcNow
+        };
     }
 }
 

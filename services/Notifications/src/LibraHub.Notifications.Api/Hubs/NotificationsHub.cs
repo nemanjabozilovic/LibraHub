@@ -11,7 +11,6 @@ public class NotificationsHub : Hub
         var userId = GetUserId();
         if (userId.HasValue)
         {
-            // Add user to group based on their user ID
             await Groups.AddToGroupAsync(Context.ConnectionId, $"user-{userId.Value}");
         }
 
