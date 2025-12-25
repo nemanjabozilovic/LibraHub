@@ -38,8 +38,9 @@ public class ForgotPasswordHandler(
 
         await tokenRepository.AddAsync(passwordResetToken, cancellationToken);
 
-        var frontendUrl = frontendOptions.Value.BaseUrl;
-        var resetLink = $"{frontendUrl}/reset-password?token={resetToken}";
+        var frontendUrl = frontendOptions.Value.BaseUrl.TrimEnd('/');
+        var encodedToken = Uri.EscapeDataString(resetToken);
+        var resetLink = $"{frontendUrl}/reset-password?token={encodedToken}";
 
         var emailSubject = EmailMessages.PasswordResetRequest;
         var emailModel = new

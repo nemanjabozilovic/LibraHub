@@ -4,9 +4,11 @@ using LibraHub.Contracts.Common;
 using LibraHub.Contracts.Identity.V1;
 using LibraHub.Identity.Application.Abstractions;
 using LibraHub.Identity.Application.Constants;
+using LibraHub.Identity.Application.Options;
 using LibraHub.Identity.Domain.Users;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Error = LibraHub.BuildingBlocks.Results.Error;
 
 namespace LibraHub.Identity.Application.Auth.Commands.Register;
@@ -20,18 +22,29 @@ public class RegisterHandler(
     IEmailSender emailSender,
     IClock clock,
     IUnitOfWork unitOfWork,
-    ILogger<RegisterHandler> logger) : IRequestHandler<RegisterCommand, Result<Guid>>
+    IOptions<FrontendOptions> frontendOptions,
+    ILogger<RegisterHandler> logger) : IRequestHandler<RegisterCommand, Result>
 {
-    public async Task<Result<Guid>> Handle(RegisterCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         var emailLower = request.Email.ToLowerInvariant();
 
         if (await userRepository.ExistsByEmailAsync(emailLower, cancellationToken))
         {
-            return Result.Failure<Guid>(Error.Conflict("Email already exists"));
+            return Result.Failure(Error.Conflict("Email already exists"));
         }
 
         var passwordHash = passwordHasher.HashPassword(request.Password);
+        var user = CreateUser(emailLower, request, passwordHash);
+        var verificationToken = await SaveUserWithTokenAsync(user, cancellationToken);
+
+        await SendWelcomeEmailAsync(user, verificationToken, cancellationToken);
+
+        return Result.Success();
+    }
+
+    private static User CreateUser(string emailLower, RegisterCommand request, string passwordHash)
+    {
         var user = new User(
             Guid.NewGuid(),
             emailLower,
@@ -42,48 +55,61 @@ public class RegisterHandler(
             request.DateOfBirth);
 
         user.AddRole(Role.User);
+        return user;
+    }
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
+    private async Task<string> SaveUserWithTokenAsync(User user, CancellationToken cancellationToken)
+    {
+        var verificationToken = tokenService.GenerateToken();
+        var tokenExpiration = tokenService.GetExpiration();
 
         try
         {
-            await userRepository.AddAsync(user, cancellationToken);
-
-            var verificationToken = tokenService.GenerateToken();
-            var tokenExpiration = tokenService.GetExpiration();
-            var emailVerificationToken = new Domain.Tokens.EmailVerificationToken(
-                Guid.NewGuid(),
-                user.Id,
-                verificationToken,
-                tokenExpiration);
-
-            await tokenRepository.AddAsync(emailVerificationToken, cancellationToken);
-
-            var integrationEvent = new UserRegisteredV1
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
             {
-                UserId = user.Id,
-                Email = user.Email,
-                OccurredAt = clock.UtcNow
-            };
+                await userRepository.AddAsync(user, ct);
 
-            await outboxWriter.WriteAsync(integrationEvent, EventTypes.UserRegistered, cancellationToken);
+                var emailVerificationToken = new Domain.Tokens.EmailVerificationToken(
+                    Guid.NewGuid(),
+                    user.Id,
+                    verificationToken,
+                    tokenExpiration);
 
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                await tokenRepository.AddAsync(emailVerificationToken, ct);
+
+                var integrationEvent = new UserRegisteredV1
+                {
+                    UserId = user.Id,
+                    Email = user.Email,
+                    OccurredAt = clock.UtcNow
+                };
+
+                await outboxWriter.WriteAsync(integrationEvent, EventTypes.UserRegistered, ct);
+            }, cancellationToken);
+
+            return verificationToken;
         }
         catch (Exception ex)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
-            logger.LogError(ex, "Failed to register user with email: {Email}", emailLower);
+            logger.LogError(ex, "Failed to register user with email: {Email}", user.Email);
             throw;
         }
+    }
 
+    private async Task SendWelcomeEmailAsync(User user, string verificationToken, CancellationToken cancellationToken)
+    {
+        var frontendUrl = frontendOptions.Value.BaseUrl.TrimEnd('/');
+        var encodedToken = Uri.EscapeDataString(verificationToken);
+        var verificationLink = $"{frontendUrl}/verify-email?token={encodedToken}";
         var emailSubject = EmailMessages.Welcome;
         var emailModel = new
         {
             FullName = !string.IsNullOrWhiteSpace(user.DisplayName) ? user.DisplayName : user.Email,
-            Password = request.Password
+            VerificationLink = verificationLink,
+            ExpirationDays = tokenService.GetExpirationDays()
         };
+
+        logger.LogInformation("Preparing to send welcome email to {Email} with verification link", user.Email);
 
         try
         {
@@ -93,12 +119,13 @@ public class RegisterHandler(
                 "REGISTER",
                 emailModel,
                 cancellationToken);
+
+            logger.LogInformation("Welcome email sent successfully to {Email}", user.Email);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
+            logger.LogError(ex, "Failed to send welcome email to {Email}. Error: {ErrorMessage}",
+                user.Email, ex.Message);
         }
-
-        return Result.Success(user.Id);
     }
 }

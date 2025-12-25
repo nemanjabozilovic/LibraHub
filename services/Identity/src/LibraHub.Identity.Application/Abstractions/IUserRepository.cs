@@ -12,6 +12,14 @@ public interface IUserRepository
 
     Task<int> CountAdminsAsync(CancellationToken cancellationToken = default);
 
+    Task<int> CountAllAsync(CancellationToken cancellationToken = default);
+
+    Task<int> CountByStatusAsync(UserStatus status, CancellationToken cancellationToken = default);
+
+    Task<int> CountPendingEmailVerificationAsync(CancellationToken cancellationToken = default);
+
+    Task<int> CountCreatedAfterAsync(DateTime date, CancellationToken cancellationToken = default);
+
     Task AddAsync(User user, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(User user, CancellationToken cancellationToken = default);

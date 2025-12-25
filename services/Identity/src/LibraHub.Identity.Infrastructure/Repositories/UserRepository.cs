@@ -40,6 +40,29 @@ public class UserRepository : IUserRepository
             .CountAsync(ur => ur.Role == Role.Admin, cancellationToken);
     }
 
+    public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Users.CountAsync(cancellationToken);
+    }
+
+    public async Task<int> CountByStatusAsync(UserStatus status, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .CountAsync(u => u.Status == status, cancellationToken);
+    }
+
+    public async Task<int> CountPendingEmailVerificationAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .CountAsync(u => !u.EmailVerified && u.Status == UserStatus.Active, cancellationToken);
+    }
+
+    public async Task<int> CountCreatedAfterAsync(DateTime date, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .CountAsync(u => u.CreatedAt >= date, cancellationToken);
+    }
+
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
         await _context.Users.AddAsync(user, cancellationToken);

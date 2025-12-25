@@ -16,6 +16,12 @@ public interface IEntitlementRepository
 
     Task<int> CountActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    Task<int> CountAllAsync(CancellationToken cancellationToken = default);
+
+    Task<int> CountByStatusAsync(EntitlementStatus status, CancellationToken cancellationToken = default);
+
+    Task<int> CountAcquiredAfterAsync(DateTime date, CancellationToken cancellationToken = default);
+
     Task<bool> HasAccessAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default);
 
     Task AddAsync(Entitlement entitlement, CancellationToken cancellationToken = default);

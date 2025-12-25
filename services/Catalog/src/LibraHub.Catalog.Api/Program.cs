@@ -9,7 +9,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddCatalogSwagger();
 builder.Services.AddCatalogDatabase(builder.Configuration);
-builder.Services.AddCatalogApplicationServices();
+builder.Services.AddCatalogApplicationServices(builder.Configuration);
 builder.Services.AddCatalogJwtAuthentication(builder.Configuration);
 builder.Services.AddCatalogRabbitMq(builder.Configuration);
 builder.Services.AddCatalogHealthChecks(builder.Configuration);
@@ -22,7 +22,11 @@ if (app.Environment.IsDevelopment())
     app.UseCatalogSwagger();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();

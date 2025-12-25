@@ -4,6 +4,7 @@ using LibraHub.Identity.Application.Auth.Commands.ForgotPassword;
 using LibraHub.Identity.Application.Auth.Commands.Login;
 using LibraHub.Identity.Application.Auth.Commands.Refresh;
 using LibraHub.Identity.Application.Auth.Commands.Register;
+using LibraHub.Identity.Application.Auth.Commands.ResendVerificationEmail;
 using LibraHub.Identity.Application.Auth.Commands.ResetPassword;
 using LibraHub.Identity.Application.Auth.Commands.VerifyEmail;
 using LibraHub.Identity.Application.Auth.Dtos;
@@ -17,7 +18,9 @@ namespace LibraHub.Identity.Api.Controllers;
 public class AuthController(IMediator mediator) : ControllerBase
 {
     [HttpPost("register")]
-    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(Error), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Error), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register([FromBody] RegisterRequestDto request, CancellationToken cancellationToken)
     {
         var command = new RegisterCommand(
@@ -53,7 +56,8 @@ public class AuthController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequestDto request, CancellationToken cancellationToken)
     {
-        var command = new VerifyEmailCommand(request.Token);
+        var decodedToken = Uri.UnescapeDataString(request.Token);
+        var command = new VerifyEmailCommand(decodedToken);
         var result = await mediator.Send(command, cancellationToken);
         return result.ToActionResult(this);
     }
@@ -71,7 +75,18 @@ public class AuthController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request, CancellationToken cancellationToken)
     {
-        var command = new ResetPasswordCommand(request.Token, request.NewPassword, request.ConfirmPassword);
+        var decodedToken = Uri.UnescapeDataString(request.Token);
+        var command = new ResetPasswordCommand(decodedToken, request.NewPassword, request.ConfirmPassword);
+        var result = await mediator.Send(command, cancellationToken);
+        return result.ToActionResult(this);
+    }
+
+    [HttpPost("resend-verification-email")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Error), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationEmailRequestDto request, CancellationToken cancellationToken)
+    {
+        var command = new ResendVerificationEmailCommand(request.Email);
         var result = await mediator.Send(command, cancellationToken);
         return result.ToActionResult(this);
     }

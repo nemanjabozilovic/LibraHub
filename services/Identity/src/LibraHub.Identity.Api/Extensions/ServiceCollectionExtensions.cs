@@ -1,5 +1,6 @@
 using FluentValidation;
 using LibraHub.BuildingBlocks.Auth;
+using LibraHub.BuildingBlocks.Caching;
 using LibraHub.BuildingBlocks.Email;
 using LibraHub.BuildingBlocks.Health;
 using LibraHub.BuildingBlocks.Messaging;
@@ -56,11 +57,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
 
         services.AddScoped<DatabaseSeeder>();
-
-        // Configure email using BuildingBlocks
+        services.AddRedisCache(configuration);
         services.AddLibraHubEmail(configuration);
-
-        // Configure Storage (MinIO)
         services.AddLibraHubMinioStorage(configuration);
 
         return services;

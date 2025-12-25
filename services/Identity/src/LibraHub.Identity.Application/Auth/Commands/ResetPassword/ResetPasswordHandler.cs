@@ -51,22 +51,19 @@ public class ResetPasswordHandler(
         user.UpdatePassword(newPasswordHash);
         token.MarkAsUsed();
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            await tokenRepository.UpdateAsync(token, cancellationToken);
-            await userRepository.UpdateAsync(user, cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                await tokenRepository.UpdateAsync(token, ct);
+                await userRepository.UpdateAsync(user, ct);
+            }, cancellationToken);
 
             logger.LogInformation("Password reset successful for user: {UserId}, Email: {Email}", user.Id, user.Email);
             return Result.Success();
         }
         catch (Exception ex)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(ex, "Failed to reset password for user: {UserId}", user.Id);
             throw;
         }

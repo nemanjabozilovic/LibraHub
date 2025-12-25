@@ -10,6 +10,12 @@ public interface IBookRepository
 
     Task<int> CountSearchAsync(string? searchTerm, CancellationToken cancellationToken = default);
 
+    Task<int> CountAllAsync(CancellationToken cancellationToken = default);
+
+    Task<int> CountByStatusAsync(BookStatus status, CancellationToken cancellationToken = default);
+
+    Task<int> CountCreatedAfterAsync(DateTime date, CancellationToken cancellationToken = default);
+
     Task AddAsync(Book book, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(Book book, CancellationToken cancellationToken = default);

@@ -23,38 +23,35 @@ public class OrderRefundedConsumer(
             .Where(e => e.OrderId == @event.OrderId && e.IsActive)
             .ToList();
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            foreach (var entitlement in orderEntitlements)
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
             {
-                entitlement.Revoke(@event.Reason);
-                await entitlementRepository.UpdateAsync(entitlement, cancellationToken);
+                foreach (var entitlement in orderEntitlements)
+                {
+                    entitlement.Revoke(@event.Reason);
+                    await entitlementRepository.UpdateAsync(entitlement, ct);
 
-                logger.LogInformation("Revoked entitlement for UserId: {UserId}, BookId: {BookId}",
-                    @event.UserId, entitlement.BookId);
+                    logger.LogInformation("Revoked entitlement for UserId: {UserId}, BookId: {BookId}",
+                        @event.UserId, entitlement.BookId);
 
-                await outboxWriter.WriteAsync(
-                    new EntitlementRevokedV1
-                    {
-                        UserId = entitlement.UserId,
-                        BookId = entitlement.BookId,
-                        Reason = @event.Reason,
-                        RevokedAtUtc = @event.RefundedAt
-                    },
-                    EventTypes.EntitlementRevoked,
-                    cancellationToken);
-            }
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                    await outboxWriter.WriteAsync(
+                        new EntitlementRevokedV1
+                        {
+                            UserId = entitlement.UserId,
+                            BookId = entitlement.BookId,
+                            Reason = @event.Reason,
+                            RevokedAtUtc = @event.RefundedAt
+                        },
+                        EventTypes.EntitlementRevoked,
+                        ct);
+                }
+            }, cancellationToken);
 
             logger.LogInformation("Completed processing OrderRefunded event for OrderId: {OrderId}", @event.OrderId);
         }
         catch (Exception ex)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(ex, "Failed to process OrderRefunded event for OrderId: {OrderId}", @event.OrderId);
             throw;
         }

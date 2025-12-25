@@ -59,30 +59,28 @@ public class CreateUserHandler(
 
     private async Task<string> SaveUserWithTokenAsync(User user, CancellationToken cancellationToken)
     {
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
+        var completionToken = tokenService.GenerateToken();
+        var tokenExpiration = tokenService.GetExpiration();
 
         try
         {
-            await userRepository.AddAsync(user, cancellationToken);
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                await userRepository.AddAsync(user, ct);
 
-            var completionToken = tokenService.GenerateToken();
-            var tokenExpiration = tokenService.GetExpiration();
-            var registrationToken = new RegistrationCompletionToken(
-                Guid.NewGuid(),
-                user.Id,
-                completionToken,
-                tokenExpiration);
+                var registrationToken = new RegistrationCompletionToken(
+                    Guid.NewGuid(),
+                    user.Id,
+                    completionToken,
+                    tokenExpiration);
 
-            await tokenRepository.AddAsync(registrationToken, cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                await tokenRepository.AddAsync(registrationToken, ct);
+            }, cancellationToken);
 
             return completionToken;
         }
         catch (Exception ex)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(ex, "Failed to create user with email: {Email}", user.Email);
             throw;
         }
@@ -92,7 +90,8 @@ public class CreateUserHandler(
     {
         var frontendUrl = configuration["Frontend:BaseUrl"]
             ?? throw new InvalidOperationException("Frontend:BaseUrl configuration is required");
-        var completionLink = $"{frontendUrl}/complete-registration?token={completionToken}";
+        var encodedToken = Uri.EscapeDataString(completionToken);
+        var completionLink = $"{frontendUrl.TrimEnd('/')}/complete-registration?token={encodedToken}";
         var emailSubject = EmailMessages.CompleteRegistration;
         var emailModel = new
         {

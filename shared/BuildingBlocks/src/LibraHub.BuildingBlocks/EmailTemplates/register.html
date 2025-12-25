@@ -9,9 +9,9 @@
         <h2 style="color: #2c3e50;">Welcome to LibraHub</h2>
         <p>Dear @Model.FullName,</p>
         <p>Your account has been successfully created in our system.</p>
-        <p>To access your account, please use the following temporary password:</p>
-        <p><strong>Temporary Password: @Model.TempPassword</strong></p>
-        <p>For security reasons, you will be prompted to set a new password upon your first login.</p>
+        <p>To complete your registration and verify your email address, please click on the following link:</p>
+        <p><a href="@Model.VerificationLink" style="color: #2c3e50; text-decoration: underline;">Verify Email Address</a></p>
+        <p>This link will expire in @Model.ExpirationDays days.</p>
         <p>If you did not request this account or believe this email was sent in error, please disregard it.</p>
         <p>Best regards,<br />LibraHub Team</p>
     </div>

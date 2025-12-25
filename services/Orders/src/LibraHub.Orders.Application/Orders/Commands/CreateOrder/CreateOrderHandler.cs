@@ -166,25 +166,22 @@ public class CreateOrderHandler(
 
     private async Task<Result<Guid>> SaveOrderWithTransactionAsync(Order order, CancellationToken cancellationToken)
     {
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            await orderRepository.AddAsync(order, cancellationToken);
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                await orderRepository.AddAsync(order, ct);
 
-            await outboxWriter.WriteAsync(
-                CreateOrderCreatedEvent(order),
-                Contracts.Common.EventTypes.OrderCreated,
-                cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                await outboxWriter.WriteAsync(
+                    CreateOrderCreatedEvent(order),
+                    Contracts.Common.EventTypes.OrderCreated,
+                    ct);
+            }, cancellationToken);
 
             return Result.Success(order.Id);
         }
         catch
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

@@ -11,22 +11,11 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__OrdersDb=Host=postgres;Port=5432;Database=librahub_orders;Username=librahub_admin;Password=L1br@Hub_DB_2026!S3cur3_P@ss
       - ConnectionStrings__RabbitMQ=amqp://librahub_mq:R%40bb1tMQ_L1br%40Hub_2026%21S3cur3_P%40ss@rabbitmq:5672/
-      - Jwt__SecretKey=1CaAKnS5a3ukmWmB9mRVbh/9/S2FSam6JTMkuEXjVDnUY+AisXUNcwkPtifcGw0cX8W7ybaYQ84YIm6KJDlstA==
-      - Jwt__Issuer=LibraHub.Identity
-      - Jwt__Audience=LibraHub
+      - ConnectionStrings__Redis=redis:6379
       - Orders__CatalogApiUrl=http://catalog-api:8080
       - Orders__LibraryApiUrl=http://library-api:8080
       - Orders__IdentityApiUrl=http://identity-api:8080
-      - MockPayment__FailureProbabilityPercent=0
-      - MockPayment__UseAmountBasedFailure=true
-      - MockPayment__FailureAmountEndings__0=99
-      - MockPayment__FailureAmountEndings__1=98
-      - MockPayment__FailureReasons__0=Insufficient funds
-      - MockPayment__FailureReasons__1=Card declined
-      - MockPayment__FailureReasons__2=Payment gateway timeout
-      - MockPayment__FailureReasons__3=Invalid card details
-      - MockPayment__FailureReasons__4=Transaction limit exceeded
-      - MockPayment__FailureReasons__5=Network error
+      - EmailConfig__Host=localhost
     ports:
       - "60980:8080"
       - "60981:8081"

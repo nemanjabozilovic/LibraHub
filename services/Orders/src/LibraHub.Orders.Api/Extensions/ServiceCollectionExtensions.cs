@@ -1,5 +1,6 @@
 using FluentValidation;
 using LibraHub.BuildingBlocks.Auth;
+using LibraHub.BuildingBlocks.Caching;
 using LibraHub.BuildingBlocks.Health;
 using LibraHub.BuildingBlocks.Idempotency;
 using LibraHub.BuildingBlocks.Messaging;
@@ -57,6 +58,8 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<ICatalogPricingClient, CatalogPricingClient>();
         services.AddHttpClient<ILibraryOwnershipClient, LibraryOwnershipClient>();
         services.AddHttpClient<IIdentityClient, IdentityClient>();
+
+        services.AddRedisCache(configuration);
 
         return services;
     }

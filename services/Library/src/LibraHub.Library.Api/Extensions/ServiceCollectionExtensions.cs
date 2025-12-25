@@ -1,5 +1,6 @@
 using FluentValidation;
 using LibraHub.BuildingBlocks.Auth;
+using LibraHub.BuildingBlocks.Caching;
 using LibraHub.BuildingBlocks.Health;
 using LibraHub.BuildingBlocks.Idempotency;
 using LibraHub.BuildingBlocks.Messaging;
@@ -48,7 +49,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore<LibraryDbContext, IdempotencyKey>>();
 
-        // Register consumers
         services.AddScoped<Application.Consumers.OrderPaidConsumer>();
         services.AddScoped<Application.Consumers.OrderRefundedConsumer>();
         services.AddScoped<Application.Consumers.BookPublishedConsumer>();
@@ -56,6 +56,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Application.Consumers.BookRemovedConsumer>();
 
         services.AddOptions<LibraryOptions>().Bind(configuration.GetSection(LibraryOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+
+        services.AddRedisCache(configuration);
 
         return services;
     }

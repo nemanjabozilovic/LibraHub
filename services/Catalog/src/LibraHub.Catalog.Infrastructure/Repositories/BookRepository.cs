@@ -40,6 +40,23 @@ public class BookRepository : IBookRepository
         return await query.CountAsync(cancellationToken);
     }
 
+    public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Books.CountAsync(cancellationToken);
+    }
+
+    public async Task<int> CountByStatusAsync(BookStatus status, CancellationToken cancellationToken = default)
+    {
+        return await _context.Books
+            .CountAsync(b => b.Status == status, cancellationToken);
+    }
+
+    public async Task<int> CountCreatedAfterAsync(DateTime date, CancellationToken cancellationToken = default)
+    {
+        return await _context.Books
+            .CountAsync(b => b.CreatedAt >= date, cancellationToken);
+    }
+
     private IQueryable<Book> BuildSearchQuery(string? searchTerm)
     {
         var query = _context.Books

@@ -28,22 +28,23 @@ public class BookRemovedConsumer(
         var editions = await editionsTask;
         var cover = await coverTask;
 
-        foreach (var obj in storedObjects)
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            obj.Block(blockReason);
-        }
+            foreach (var obj in storedObjects)
+            {
+                obj.Block(blockReason);
+            }
 
-        foreach (var edition in editions)
-        {
-            edition.Block();
-        }
+            foreach (var edition in editions)
+            {
+                edition.Block();
+            }
 
-        if (cover != null)
-        {
-            cover.Block();
-        }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+            if (cover != null)
+            {
+                cover.Block();
+            }
+        }, cancellationToken);
 
         logger.LogInformation("All content blocked for BookId: {BookId}", @event.BookId);
     }

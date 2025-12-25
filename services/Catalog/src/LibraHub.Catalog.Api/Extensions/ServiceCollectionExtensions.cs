@@ -1,5 +1,6 @@
 using FluentValidation;
 using LibraHub.BuildingBlocks.Auth;
+using LibraHub.BuildingBlocks.Caching;
 using LibraHub.BuildingBlocks.Health;
 using LibraHub.BuildingBlocks.Messaging;
 using LibraHub.BuildingBlocks.Outbox;
@@ -28,7 +29,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddCatalogApplicationServices(this IServiceCollection services)
+    public static IServiceCollection AddCatalogApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssembly).Assembly));
         services.AddValidatorsFromAssembly(typeof(ApplicationAssembly).Assembly);
@@ -44,6 +45,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<BuildingBlocks.Abstractions.IClock, BuildingBlocks.Clock>();
         services.AddHttpContextAccessor();
         services.AddScoped<BuildingBlocks.Abstractions.ICurrentUser, BuildingBlocks.CurrentUser.CurrentUser>();
+
+        services.AddRedisCache(configuration);
 
         return services;
     }

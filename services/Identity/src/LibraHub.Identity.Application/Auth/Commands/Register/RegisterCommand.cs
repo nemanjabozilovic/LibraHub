@@ -9,4 +9,4 @@ public record RegisterCommand(
     string FirstName,
     string LastName,
     string? Phone = null,
-    DateTime? DateOfBirth = null) : IRequest<Result<Guid>>;
+    DateTime? DateOfBirth = null) : IRequest<Result>;

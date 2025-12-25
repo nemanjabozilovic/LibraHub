@@ -23,7 +23,11 @@ if (app.Environment.IsDevelopment())
     app.UseLibrarySwagger();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<IdempotencyKeyMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();

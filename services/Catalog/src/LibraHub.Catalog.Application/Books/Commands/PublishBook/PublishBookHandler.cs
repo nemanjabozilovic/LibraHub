@@ -39,33 +39,30 @@ public class PublishBookHandler(
             return Result.Failure(Error.Validation(ex.Message));
         }
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            await bookRepository.UpdateAsync(book, cancellationToken);
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                await bookRepository.UpdateAsync(book, ct);
 
-            var authors = string.Join(", ", book.Authors.Select(a => a.Name));
+                var authors = string.Join(", ", book.Authors.Select(a => a.Name));
 
-            await outboxWriter.WriteAsync(
-                new Contracts.Catalog.V1.BookPublishedV1
-                {
-                    BookId = book.Id,
-                    Title = book.Title,
-                    Authors = authors,
-                    PublishedAt = book.UpdatedAt
-                },
-                Contracts.Common.EventTypes.BookPublished,
-                cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                await outboxWriter.WriteAsync(
+                    new Contracts.Catalog.V1.BookPublishedV1
+                    {
+                        BookId = book.Id,
+                        Title = book.Title,
+                        Authors = authors,
+                        PublishedAt = book.UpdatedAt
+                    },
+                    Contracts.Common.EventTypes.BookPublished,
+                    ct);
+            }, cancellationToken);
 
             return Result.Success();
         }
         catch
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

@@ -87,8 +87,9 @@ public class UsersController(IMediator mediator) : ControllerBase
         [FromBody] CompleteRegistrationRequestDto request,
         CancellationToken cancellationToken)
     {
+        var decodedToken = Uri.UnescapeDataString(request.Token);
         var command = new CompleteRegistrationCommand(
-            request.Token,
+            decodedToken,
             request.FirstName,
             request.LastName,
             request.Phone,

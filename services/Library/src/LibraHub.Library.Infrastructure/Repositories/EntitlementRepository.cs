@@ -58,6 +58,23 @@ public class EntitlementRepository : IEntitlementRepository
             .CountAsync(e => e.UserId == userId && e.Status == EntitlementStatus.Active, cancellationToken);
     }
 
+    public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements.CountAsync(cancellationToken);
+    }
+
+    public async Task<int> CountByStatusAsync(EntitlementStatus status, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .CountAsync(e => e.Status == status, cancellationToken);
+    }
+
+    public async Task<int> CountAcquiredAfterAsync(DateTime date, CancellationToken cancellationToken = default)
+    {
+        return await _context.Entitlements
+            .CountAsync(e => e.AcquiredAt >= date, cancellationToken);
+    }
+
     public async Task<bool> HasAccessAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default)
     {
         return await _context.Entitlements

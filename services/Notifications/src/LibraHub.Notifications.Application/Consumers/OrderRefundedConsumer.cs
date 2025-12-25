@@ -42,28 +42,26 @@ public class OrderRefundedConsumer(
         var emailEnabled = preference?.EmailEnabled ?? true;
         var inAppEnabled = preference?.InAppEnabled ?? true;
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
+        Notification? notification = null;
 
         try
         {
-            Notification? notification = null;
-
-            if (inAppEnabled)
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
             {
-                notification = new Notification(
-                    Guid.NewGuid(),
-                    userId,
-                    NotificationType.OrderRefunded,
-                    NotificationMessages.OrderRefunded.Title,
-                    NotificationMessages.OrderRefunded.GetMessage(@event.OrderId, @event.Reason));
+                if (inAppEnabled)
+                {
+                    notification = new Notification(
+                        Guid.NewGuid(),
+                        userId,
+                        NotificationType.OrderRefunded,
+                        NotificationMessages.OrderRefunded.Title,
+                        NotificationMessages.OrderRefunded.GetMessage(@event.OrderId, @event.Reason));
 
-                await notificationRepository.AddAsync(notification, cancellationToken);
-            }
+                    await notificationRepository.AddAsync(notification, ct);
+                }
 
-            await inboxRepository.MarkAsProcessedAsync(messageId, EventType, cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                await inboxRepository.MarkAsProcessedAsync(messageId, EventType, ct);
+            }, cancellationToken);
 
             if (notification != null)
             {
@@ -80,7 +78,6 @@ public class OrderRefundedConsumer(
         }
         catch (Exception ex)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(ex, "Failed to process OrderRefunded event for OrderId: {OrderId}, MessageId: {MessageId}",
                 @event.OrderId, messageId);
             throw;

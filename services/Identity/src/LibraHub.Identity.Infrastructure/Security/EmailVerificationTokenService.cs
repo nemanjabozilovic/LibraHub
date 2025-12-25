@@ -26,4 +26,9 @@ public class EmailVerificationTokenService : IEmailVerificationTokenService
     {
         return DateTime.UtcNow.AddDays(_options.EmailVerificationExpirationDays);
     }
+
+    public int GetExpirationDays()
+    {
+        return _options.EmailVerificationExpirationDays;
+    }
 }

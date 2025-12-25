@@ -50,36 +50,33 @@ public class RefundOrderHandler(
             request.Reason,
             refundedBy);
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            await refundRepository.AddAsync(refund, cancellationToken);
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                await refundRepository.AddAsync(refund, ct);
 
-            order.MarkAsRefunded();
-            await orderRepository.UpdateAsync(order, cancellationToken);
+                order.MarkAsRefunded();
+                await orderRepository.UpdateAsync(order, ct);
 
-            await outboxWriter.WriteAsync(
-                new Contracts.Orders.V1.OrderRefundedV1
-                {
-                    OrderId = order.Id,
-                    UserId = order.UserId,
-                    RefundId = refund.Id,
-                    Reason = request.Reason,
-                    RefundedBy = refundedBy,
-                    RefundedAt = clock.UtcNow
-                },
-                Contracts.Common.EventTypes.OrderRefunded,
-                cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                await outboxWriter.WriteAsync(
+                    new Contracts.Orders.V1.OrderRefundedV1
+                    {
+                        OrderId = order.Id,
+                        UserId = order.UserId,
+                        RefundId = refund.Id,
+                        Reason = request.Reason,
+                        RefundedBy = refundedBy,
+                        RefundedAt = clock.UtcNow
+                    },
+                    Contracts.Common.EventTypes.OrderRefunded,
+                    ct);
+            }, cancellationToken);
 
             return Result.Success();
         }
         catch
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

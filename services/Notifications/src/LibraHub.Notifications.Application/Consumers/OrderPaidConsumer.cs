@@ -42,28 +42,26 @@ public class OrderPaidConsumer(
         var emailEnabled = preference?.EmailEnabled ?? true;
         var inAppEnabled = preference?.InAppEnabled ?? true;
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
+        Notification? notification = null;
 
         try
         {
-            Notification? notification = null;
-
-            if (inAppEnabled)
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
             {
-                notification = new Notification(
-                    Guid.NewGuid(),
-                    userId,
-                    NotificationType.OrderPaid,
-                    NotificationMessages.OrderPaid.Title,
-                    NotificationMessages.OrderPaid.GetMessage(@event.OrderId, @event.Total, @event.Currency));
+                if (inAppEnabled)
+                {
+                    notification = new Notification(
+                        Guid.NewGuid(),
+                        userId,
+                        NotificationType.OrderPaid,
+                        NotificationMessages.OrderPaid.Title,
+                        NotificationMessages.OrderPaid.GetMessage(@event.OrderId, @event.Total, @event.Currency));
 
-                await notificationRepository.AddAsync(notification, cancellationToken);
-            }
+                    await notificationRepository.AddAsync(notification, ct);
+                }
 
-            await inboxRepository.MarkAsProcessedAsync(messageId, EventType, cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                await inboxRepository.MarkAsProcessedAsync(messageId, EventType, ct);
+            }, cancellationToken);
 
             if (notification != null)
             {
@@ -80,7 +78,6 @@ public class OrderPaidConsumer(
         }
         catch (Exception ex)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(ex, "Failed to process OrderPaid event for OrderId: {OrderId}, MessageId: {MessageId}",
                 @event.OrderId, messageId);
             throw;

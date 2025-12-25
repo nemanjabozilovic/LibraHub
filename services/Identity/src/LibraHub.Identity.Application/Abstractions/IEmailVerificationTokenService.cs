@@ -5,4 +5,6 @@ public interface IEmailVerificationTokenService
     string GenerateToken();
 
     DateTime GetExpiration();
+
+    int GetExpirationDays();
 }

@@ -42,81 +42,79 @@ public class AnnouncementPublishedConsumer(
         var notificationsToCreate = new List<Notification>();
         var emailTasks = new List<Task>();
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            foreach (var userId in allUserIds)
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
             {
-                try
+                foreach (var userId in allUserIds)
                 {
-                    var preference = await preferencesRepository.GetByUserIdAndTypeAsync(
-                        userId,
-                        NotificationType.AnnouncementPublished,
-                        cancellationToken);
-
-                    var emailEnabled = preference?.EmailEnabled ?? true;
-                    var inAppEnabled = preference?.InAppEnabled ?? true;
-
-                    if (inAppEnabled)
+                    try
                     {
-                        var notification = new Notification(
-                            Guid.NewGuid(),
+                        var preference = await preferencesRepository.GetByUserIdAndTypeAsync(
                             userId,
                             NotificationType.AnnouncementPublished,
-                            NotificationMessages.AnnouncementPublished.Title,
-                            NotificationMessages.AnnouncementPublished.GetMessage(@event.Title));
+                            ct);
 
-                        notificationsToCreate.Add(notification);
-                    }
+                        var emailEnabled = preference?.EmailEnabled ?? true;
+                        var inAppEnabled = preference?.InAppEnabled ?? true;
 
-                    if (emailEnabled)
-                    {
-                        var userInfo = await identityClient.GetUserInfoAsync(userId, cancellationToken);
-
-                        if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.IsActive)
+                        if (inAppEnabled)
                         {
-                            var emailSubject = NotificationMessages.AnnouncementPublished.Title;
-                            var emailModel = new
-                            {
-                                FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
-                                AnnouncementTitle = @event.Title,
-                                BookId = @event.BookId,
-                                AnnouncementId = @event.AnnouncementId,
-                                PublishedAt = @event.PublishedAt
-                            };
-
-                            emailTasks.Add(SendEmailNotificationAsync(
-                                notificationSender,
-                                userInfo.Email,
-                                emailSubject,
-                                emailModel,
+                            var notification = new Notification(
+                                Guid.NewGuid(),
                                 userId,
-                                @event.AnnouncementId,
-                                cancellationToken));
+                                NotificationType.AnnouncementPublished,
+                                NotificationMessages.AnnouncementPublished.Title,
+                                NotificationMessages.AnnouncementPublished.GetMessage(@event.Title));
+
+                            notificationsToCreate.Add(notification);
                         }
-                        else
+
+                        if (emailEnabled)
                         {
-                            logger.LogWarning("User info not found, inactive, or email not available for UserId: {UserId}, skipping email notification", userId);
+                            var userInfo = await identityClient.GetUserInfoAsync(userId, ct);
+
+                            if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.IsActive)
+                            {
+                                var emailSubject = NotificationMessages.AnnouncementPublished.Title;
+                                var emailModel = new
+                                {
+                                    FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
+                                    AnnouncementTitle = @event.Title,
+                                    BookId = @event.BookId,
+                                    AnnouncementId = @event.AnnouncementId,
+                                    PublishedAt = @event.PublishedAt
+                                };
+
+                                emailTasks.Add(SendEmailNotificationAsync(
+                                    notificationSender,
+                                    userInfo.Email,
+                                    emailSubject,
+                                    emailModel,
+                                    userId,
+                                    @event.AnnouncementId,
+                                    ct));
+                            }
+                            else
+                            {
+                                logger.LogWarning("User info not found, inactive, or email not available for UserId: {UserId}, skipping email notification", userId);
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to process AnnouncementPublished notification for UserId: {UserId} for AnnouncementId: {AnnouncementId}",
+                            userId, @event.AnnouncementId);
+                    }
                 }
-                catch (Exception ex)
+
+                if (notificationsToCreate.Count > 0)
                 {
-                    logger.LogError(ex, "Failed to process AnnouncementPublished notification for UserId: {UserId} for AnnouncementId: {AnnouncementId}",
-                        userId, @event.AnnouncementId);
+                    await notificationRepository.AddRangeAsync(notificationsToCreate, ct);
                 }
-            }
 
-            if (notificationsToCreate.Count > 0)
-            {
-                await notificationRepository.AddRangeAsync(notificationsToCreate, cancellationToken);
-            }
-
-            await inboxRepository.MarkAsProcessedAsync(messageId, EventType, cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
+                await inboxRepository.MarkAsProcessedAsync(messageId, EventType, ct);
+            }, cancellationToken);
 
             logger.LogInformation("AnnouncementPublished event processed successfully for AnnouncementId: {AnnouncementId}, created {Count} notifications",
                 @event.AnnouncementId, notificationsToCreate.Count);
@@ -136,7 +134,6 @@ public class AnnouncementPublishedConsumer(
         }
         catch (Exception ex)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(ex, "Failed to process AnnouncementPublished event for AnnouncementId: {AnnouncementId}, MessageId: {MessageId}",
                 @event.AnnouncementId, messageId);
             throw;

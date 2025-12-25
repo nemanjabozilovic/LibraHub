@@ -45,6 +45,53 @@ public class OrderRepository : IOrderRepository
             .CountAsync(o => o.UserId == userId, cancellationToken);
     }
 
+    public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Orders.CountAsync(cancellationToken);
+    }
+
+    public async Task<int> CountByStatusAsync(OrderStatus status, CancellationToken cancellationToken = default)
+    {
+        return await _context.Orders
+            .CountAsync(o => o.Status == status, cancellationToken);
+    }
+
+    public async Task<OrderPeriodStatistics> GetStatisticsForPeriodAsync(DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    {
+        var orders = await _context.Orders
+            .Where(o => o.Status == OrderStatus.Paid
+                && o.CreatedAt >= from
+                && o.CreatedAt <= to)
+            .ToListAsync(cancellationToken);
+
+        var count = orders.Count;
+        var revenue = orders.Sum(o => o.Total.Amount);
+        var currency = orders.FirstOrDefault()?.Currency ?? "USD";
+
+        return new OrderPeriodStatistics
+        {
+            Count = count,
+            Revenue = revenue,
+            Currency = currency
+        };
+    }
+
+    public async Task<OrderRevenue> GetTotalRevenueAsync(CancellationToken cancellationToken = default)
+    {
+        var orders = await _context.Orders
+            .Where(o => o.Status == OrderStatus.Paid)
+            .ToListAsync(cancellationToken);
+
+        var amount = orders.Sum(o => o.Total.Amount);
+        var currency = orders.FirstOrDefault()?.Currency ?? "USD";
+
+        return new OrderRevenue
+        {
+            Amount = amount,
+            Currency = currency
+        };
+    }
+
     public async Task AddAsync(Order order, CancellationToken cancellationToken = default)
     {
         await _context.Orders.AddAsync(order, cancellationToken);
