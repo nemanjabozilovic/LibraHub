@@ -1,6 +1,7 @@
 using LibraHub.BuildingBlocks.Abstractions;
 using LibraHub.BuildingBlocks.Results;
 using LibraHub.Library.Application.Abstractions;
+using LibraHub.Library.Domain.Books;
 using LibraHub.Library.Domain.Errors;
 using MediatR;
 
@@ -30,11 +31,16 @@ public class MyBooksHandler(
             cancellationToken);
 
         var bookIds = pagedEntitlements.Select(e => e.BookId).ToList();
-        var snapshotTasks = bookIds.Select(bookId => bookSnapshotStore.GetByIdAsync(bookId, cancellationToken));
-        var snapshots = await Task.WhenAll(snapshotTasks);
-        var snapshotDict = snapshots
-            .Where(s => s != null)
-            .ToDictionary(s => s!.BookId, s => s!);
+        var snapshotDict = new Dictionary<Guid, BookSnapshot>();
+
+        foreach (var bookId in bookIds)
+        {
+            var snapshot = await bookSnapshotStore.GetByIdAsync(bookId, cancellationToken);
+            if (snapshot != null)
+            {
+                snapshotDict[snapshot.BookId] = snapshot;
+            }
+        }
 
         var books = pagedEntitlements.Select(entitlement =>
         {
@@ -56,4 +62,3 @@ public class MyBooksHandler(
         });
     }
 }
-

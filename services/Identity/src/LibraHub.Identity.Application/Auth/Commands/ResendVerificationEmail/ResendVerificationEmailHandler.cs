@@ -72,9 +72,13 @@ public class ResendVerificationEmailHandler(
         var encodedToken = Uri.EscapeDataString(verificationToken);
         var verificationLink = $"{frontendUrl}/verify-email?token={encodedToken}";
         var emailSubject = EmailMessages.Welcome;
+        var fullName = !string.IsNullOrWhiteSpace(user.DisplayName)
+            ? user.DisplayName
+            : user.Email.Split('@')[0];
+
         var emailModel = new
         {
-            FullName = !string.IsNullOrWhiteSpace(user.DisplayName) ? user.DisplayName : user.Email,
+            FullName = fullName,
             VerificationLink = verificationLink,
             ExpirationDays = tokenService.GetExpirationDays()
         };

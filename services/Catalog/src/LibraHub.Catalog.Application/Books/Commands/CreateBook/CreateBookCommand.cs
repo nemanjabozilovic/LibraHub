@@ -3,4 +3,13 @@ using MediatR;
 
 namespace LibraHub.Catalog.Application.Books.Commands.CreateBook;
 
-public record CreateBookCommand(string Title) : IRequest<Result<Guid>>;
+public record CreateBookCommand(
+    string Title,
+    string Description,
+    string Language,
+    string Publisher,
+    DateTime PublicationDate,
+    string Isbn,
+    List<string> Authors,
+    List<string> Categories,
+    List<string>? Tags = null) : IRequest<Result<Guid>>;

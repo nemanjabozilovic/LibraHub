@@ -53,9 +53,17 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<GetMeRespons
         {
             UserId = user.Id,
             Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            DisplayName = user.DisplayName,
+            Phone = user.Phone,
+            Avatar = user.Avatar,
+            DateOfBirth = user.DateOfBirth,
             Roles = roles,
             EmailVerified = user.EmailVerified,
-            Status = user.Status.ToString()
+            Status = user.Status.ToString(),
+            CreatedAt = user.CreatedAt,
+            LastLoginAt = user.LastLoginAt
         };
 
         return Result.Success(response);

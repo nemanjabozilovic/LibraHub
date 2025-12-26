@@ -92,9 +92,13 @@ public class EntitlementGrantedConsumer(
                 if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.IsActive)
                 {
                     var emailSubject = NotificationMessages.EntitlementGranted.Title;
+                    var fullName = !string.IsNullOrWhiteSpace(userInfo.FullName)
+                        ? userInfo.FullName
+                        : userInfo.Email.Split('@')[0];
+
                     var emailModel = new
                     {
-                        FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
+                        FullName = fullName,
                         BookId = @event.BookId
                     };
                     await notificationSender.SendEmailWithTemplateAsync(

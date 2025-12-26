@@ -43,19 +43,29 @@ public class BooksController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Librarian")]
+    [Authorize(Roles = "Librarian,Admin")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateBook(
         [FromBody] CreateBookRequestDto request,
         CancellationToken cancellationToken)
     {
-        var command = new CreateBookCommand(request.Title);
+        var command = new CreateBookCommand(
+            request.Title,
+            request.Description,
+            request.Language,
+            request.Publisher,
+            request.PublicationDate,
+            request.Isbn,
+            request.Authors,
+            request.Categories,
+            request.Tags);
+
         var result = await mediator.Send(command, cancellationToken);
         return result.ToCreatedActionResult(this, nameof(GetBook), new { id = result.Value });
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Librarian")]
+    [Authorize(Roles = "Librarian,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UpdateBook(
         Guid id,
@@ -78,7 +88,7 @@ public class BooksController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id}/pricing")]
-    [Authorize(Roles = "Librarian")]
+    [Authorize(Roles = "Librarian,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> SetPricing(
         Guid id,
@@ -99,7 +109,7 @@ public class BooksController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id}/publish")]
-    [Authorize(Roles = "Librarian")]
+    [Authorize(Roles = "Librarian,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> PublishBook(Guid id, CancellationToken cancellationToken)
     {
@@ -109,7 +119,7 @@ public class BooksController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id}/unlist")]
-    [Authorize(Roles = "Librarian")]
+    [Authorize(Roles = "Librarian,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnlistBook(Guid id, CancellationToken cancellationToken)
     {

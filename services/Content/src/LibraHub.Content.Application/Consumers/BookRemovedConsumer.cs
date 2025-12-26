@@ -18,15 +18,9 @@ public class BookRemovedConsumer(
 
         var blockReason = $"Book removed: {@event.Reason}";
 
-        var storedObjectsTask = storedObjectRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
-        var editionsTask = editionRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
-        var coverTask = coverRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
-
-        await Task.WhenAll(storedObjectsTask, editionsTask, coverTask);
-
-        var storedObjects = await storedObjectsTask;
-        var editions = await editionsTask;
-        var cover = await coverTask;
+        var storedObjects = await storedObjectRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
+        var editions = await editionRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
+        var cover = await coverRepository.GetByBookIdAsync(@event.BookId, cancellationToken);
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {

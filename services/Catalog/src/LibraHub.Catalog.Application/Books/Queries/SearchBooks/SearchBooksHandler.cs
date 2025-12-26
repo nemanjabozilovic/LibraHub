@@ -9,13 +9,8 @@ public class SearchBooksHandler(
 {
     public async Task<Result<SearchBooksResponseDto>> Handle(SearchBooksQuery request, CancellationToken cancellationToken)
     {
-        var booksTask = bookRepository.SearchAsync(request.SearchTerm, request.Page, request.PageSize, cancellationToken);
-        var totalCountTask = bookRepository.CountSearchAsync(request.SearchTerm, cancellationToken);
-
-        await Task.WhenAll(booksTask, totalCountTask);
-
-        var books = await booksTask;
-        var totalCount = await totalCountTask;
+        var books = await bookRepository.SearchAsync(request.SearchTerm, request.Page, request.PageSize, cancellationToken);
+        var totalCount = await bookRepository.CountSearchAsync(request.SearchTerm, cancellationToken);
 
         var bookSummaries = books.Select(b => new BookSummaryDto
         {

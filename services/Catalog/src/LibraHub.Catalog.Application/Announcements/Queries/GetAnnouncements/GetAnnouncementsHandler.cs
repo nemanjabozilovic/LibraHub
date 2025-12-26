@@ -9,24 +9,19 @@ public class GetAnnouncementsHandler(
 {
     public async Task<Result<GetAnnouncementsResponseDto>> Handle(GetAnnouncementsQuery request, CancellationToken cancellationToken)
     {
-        Task<List<Domain.Announcements.Announcement>> announcementsTask;
-        Task<int> totalCountTask;
+        List<Domain.Announcements.Announcement> announcements;
+        int totalCount;
 
         if (request.BookId.HasValue)
         {
-            announcementsTask = announcementRepository.GetByBookIdAsync(request.BookId.Value, request.Page, request.PageSize, cancellationToken);
-            totalCountTask = announcementRepository.CountByBookIdAsync(request.BookId.Value, cancellationToken);
+            announcements = await announcementRepository.GetByBookIdAsync(request.BookId.Value, request.Page, request.PageSize, cancellationToken);
+            totalCount = await announcementRepository.CountByBookIdAsync(request.BookId.Value, cancellationToken);
         }
         else
         {
-            announcementsTask = announcementRepository.GetPublishedAsync(request.Page, request.PageSize, cancellationToken);
-            totalCountTask = announcementRepository.CountPublishedAsync(cancellationToken);
+            announcements = await announcementRepository.GetPublishedAsync(request.Page, request.PageSize, cancellationToken);
+            totalCount = await announcementRepository.CountPublishedAsync(cancellationToken);
         }
-
-        await Task.WhenAll(announcementsTask, totalCountTask);
-
-        var announcements = await announcementsTask;
-        var totalCount = await totalCountTask;
 
         var announcementDtos = announcements.Select(a => new AnnouncementDto
         {

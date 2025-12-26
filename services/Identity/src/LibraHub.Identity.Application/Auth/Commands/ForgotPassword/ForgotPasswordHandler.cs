@@ -43,9 +43,13 @@ public class ForgotPasswordHandler(
         var resetLink = $"{frontendUrl}/reset-password?token={encodedToken}";
 
         var emailSubject = EmailMessages.PasswordResetRequest;
+        var fullName = !string.IsNullOrWhiteSpace(user.DisplayName)
+            ? user.DisplayName
+            : user.Email.Split('@')[0];
+
         var emailModel = new
         {
-            FullName = !string.IsNullOrWhiteSpace(user.Email) ? user.Email.Split('@')[0] : "User",
+            FullName = fullName,
             ResetLink = resetLink,
             ExpirationHours = 24
         };

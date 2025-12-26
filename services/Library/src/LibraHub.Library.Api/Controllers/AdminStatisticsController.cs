@@ -8,7 +8,7 @@ namespace LibraHub.Library.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/statistics")]
-[Authorize(Policy = "Admin")]
+[Authorize(Roles = "Admin")]
 public class AdminStatisticsController(IMediator mediator) : ControllerBase
 {
     [HttpGet("entitlements")]

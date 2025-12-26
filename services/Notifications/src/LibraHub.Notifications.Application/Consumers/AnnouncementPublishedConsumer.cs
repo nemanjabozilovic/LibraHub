@@ -77,9 +77,13 @@ public class AnnouncementPublishedConsumer(
                             if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.IsActive)
                             {
                                 var emailSubject = NotificationMessages.AnnouncementPublished.Title;
+                                var fullName = !string.IsNullOrWhiteSpace(userInfo.FullName)
+                                    ? userInfo.FullName
+                                    : userInfo.Email.Split('@')[0];
+
                                 var emailModel = new
                                 {
-                                    FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
+                                    FullName = fullName,
                                     AnnouncementTitle = @event.Title,
                                     BookId = @event.BookId,
                                     AnnouncementId = @event.AnnouncementId,

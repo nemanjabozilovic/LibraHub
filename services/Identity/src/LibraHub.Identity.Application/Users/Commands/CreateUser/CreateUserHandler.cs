@@ -91,10 +91,16 @@ public class CreateUserHandler(
         var frontendUrl = configuration["Frontend:BaseUrl"]
             ?? throw new InvalidOperationException("Frontend:BaseUrl configuration is required");
         var encodedToken = Uri.EscapeDataString(completionToken);
-        var completionLink = $"{frontendUrl.TrimEnd('/')}/complete-registration?token={encodedToken}";
+        var encodedEmail = Uri.EscapeDataString(user.Email);
+        var completionLink = $"{frontendUrl.TrimEnd('/')}/complete-registration?token={encodedToken}&email={encodedEmail}";
         var emailSubject = EmailMessages.CompleteRegistration;
+        var fullName = !string.IsNullOrWhiteSpace(user.DisplayName)
+            ? user.DisplayName
+            : user.Email.Split('@')[0];
+
         var emailModel = new
         {
+            FullName = fullName,
             Email = user.Email,
             CompletionLink = completionLink,
             ExpirationHours = tokenService.GetExpirationHours()

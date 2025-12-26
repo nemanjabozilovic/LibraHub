@@ -9,13 +9,8 @@ public class GetCampaignsHandler(
 {
     public async Task<Result<GetCampaignsResponseDto>> Handle(GetCampaignsQuery request, CancellationToken cancellationToken)
     {
-        var campaignsTask = promotionRepository.GetAllAsync(request.Page, request.PageSize, cancellationToken);
-        var totalCountTask = promotionRepository.CountAllAsync(cancellationToken);
-
-        await Task.WhenAll(campaignsTask, totalCountTask);
-
-        var campaigns = await campaignsTask;
-        var totalCount = await totalCountTask;
+        var campaigns = await promotionRepository.GetAllAsync(request.Page, request.PageSize, cancellationToken);
+        var totalCount = await promotionRepository.CountAllAsync(cancellationToken);
 
         var campaignSummaries = campaigns.Select(c => new CampaignSummaryDto
         {

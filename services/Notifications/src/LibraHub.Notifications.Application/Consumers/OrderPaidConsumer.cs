@@ -92,9 +92,13 @@ public class OrderPaidConsumer(
                 if (userInfo != null && !string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.IsActive)
                 {
                     var emailSubject = NotificationMessages.OrderPaid.Title;
+                    var fullName = !string.IsNullOrWhiteSpace(userInfo.FullName)
+                        ? userInfo.FullName
+                        : userInfo.Email.Split('@')[0];
+
                     var emailModel = new
                     {
-                        FullName = !string.IsNullOrWhiteSpace(userInfo.FullName) ? userInfo.FullName : $"User {userId}",
+                        FullName = fullName,
                         OrderId = @event.OrderId,
                         Total = @event.Total,
                         Currency = @event.Currency
